@@ -4,6 +4,7 @@
  */
 import type { ConfigSelection } from '../../config';
 import type { GameConfig } from '../../engine/types';
+import type { OnlineSession } from '../../net/session';
 import { createStore, type ReadableStore } from './store';
 
 /** How the hero picker launches: the two one-click modes, or the guided first Night. */
@@ -22,6 +23,11 @@ export interface GameRoute {
   selection: ConfigSelection;
   /** "Watch a 20-second demo" from How to Play: an all-bot Vigil the game screen autoplays. */
   demo?: boolean;
+  /**
+   * An online game: the connected session (src/net). The game screen then plays through
+   * `createNetTransport(online)` instead of a local engine; `config` is the server's (seed hidden).
+   */
+  online?: OnlineSession;
 }
 
 export type LobbyRoute =

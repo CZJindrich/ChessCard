@@ -10,7 +10,7 @@ import { browserStorage, createPresentationStore, randomSeedText } from '../../c
 import type { AudioBridge, KeyValueStorage, LocalProfile, PresentationSettings, PresentationStore } from '../../config';
 import { createContentStore, type ContentState, type ContentStore } from './contentStore';
 import { createNavigator, type Navigator, type Route } from './navigation';
-import type { LobbyActions } from './online';
+import { createOnlineService, type LobbyActions } from './online';
 import { createProfileStore, type ProfileStore } from './profileStore';
 import { createStore, useStore, type WritableStore } from './store';
 import { createToastStore, type ToastStore } from './toasts';
@@ -60,7 +60,7 @@ export interface AppServices {
   overlays: WritableStore<OverlayState>;
   audio: UiAudio;
   env: AppEnv;
-  /** The online client, once src/net provides one. */
+  /** The online client (src/net); tests may pass a stub or null. */
   online: LobbyActions | null;
 }
 
@@ -82,9 +82,11 @@ function browserClipboard(): ClipboardLike | null {
 export function createAppServices(opts: AppServicesOptions = {}): AppServices {
   const storage = opts.storage === undefined ? browserStorage() : opts.storage;
   const audioBridge = opts.audioBridge === undefined ? defaultAudio : opts.audioBridge;
+  const nav = createNavigator(opts.initialRoute);
+  const toasts = createToastStore();
   return {
-    nav: createNavigator(opts.initialRoute),
-    toasts: createToastStore(),
+    nav,
+    toasts,
     presentation: createPresentationStore({ storage, audio: audioBridge }),
     profile: createProfileStore(storage),
     content: createContentStore(),
@@ -95,7 +97,9 @@ export function createAppServices(opts: AppServicesOptions = {}): AppServices {
       randomSeed: opts.env?.randomSeed ?? randomSeedText,
       clipboard: opts.env?.clipboard === undefined ? browserClipboard() : opts.env.clipboard,
     },
-    online: opts.online ?? null,
+    // Passing `online` (even undefined) selects exactly that; without the key the app gets the
+    // real online client, which stays idle until the lobby uses it.
+    online: 'online' in opts ? (opts.online ?? null) : createOnlineService({ nav, toasts, storage }),
   };
 }
 
