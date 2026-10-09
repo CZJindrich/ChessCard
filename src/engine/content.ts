@@ -973,6 +973,7 @@ const bossDef = obj<BossDef>({
   specialText: req(text),
   weaknessText: req(text),
   phases: req(arr(bossPhase, { min: 1, max: 5 })),
+  coopIntent: def(nullable(idStr), null),
   hpBar: req(oneOf(['bell_rope', 'crown_band', 'wing_vein'] as const, 'HP bar style')),
   look: req(text),
   flavor: req(flavor),
@@ -1250,6 +1251,15 @@ const ruleConstants = obj<RuleConstants>({
   selfRelightHp: req(int(1, 9)),
   dawnRelightHp: req(int(1, 9)),
   checkWarnEscapes: req(arr(int(0, 8), { min: 1, unique: true })),
+  xMothmaker: req(obj<RuleConstants['xMothmaker']>({ rivalUnits: req(bool), ready: req(bool) })),
+  coopScaling: req(
+    obj<RuleConstants['coopScaling']>({
+      enemiesPerExtraSeat: req(int(0, 4)),
+      plumesPerExtraSeat: req(int(0, 4)),
+      bossHpPerExtraSeat: req(num(0, 4)),
+      bossIntentsPerExtraSeat: req(int(0, 4)),
+    }),
+  ),
   glory: req(
     obj<RuleConstants['glory']>({
       rivalUnit: req(int(0, 99)),
@@ -1270,6 +1280,7 @@ const ruleConstants = obj<RuleConstants>({
       selfRelight: req(int(0, 9)),
       bossToll: req(int(0, 9)),
       dawnPerCandle: req(int(-9, 0)),
+      dawnMax: req(int(0, 9)),
       thresholds: req(
         arr(
           obj<RuleConstants['dread']['thresholds'][number]>({
@@ -1662,6 +1673,11 @@ function checkSnuff(p: Pass2): void {
         else if (intent.boss !== boss.id) err(p, 'bosses', `${path}.intents`, `intent "${id}" belongs to "${intent.boss}"`);
       }
     });
+    if (boss.coopIntent !== null) {
+      const intent = bossIntents.byId[boss.coopIntent];
+      if (!intent) err(p, 'bosses', `${boss.id}.coopIntent`, `unknown boss intent "${boss.coopIntent}"`);
+      else if (intent.boss !== boss.id) err(p, 'bosses', `${boss.id}.coopIntent`, `intent "${intent.id}" belongs to "${intent.boss}"`);
+    }
   }
 }
 

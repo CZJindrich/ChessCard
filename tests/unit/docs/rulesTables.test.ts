@@ -20,7 +20,9 @@ describe('docs/RULES.md table generator', () => {
     for (const hero of content.heroes.list) expect(tables.heroes).toContain(`**${hero.name}**`);
     for (const boss of content.bosses.list) {
       expect(tables.bosses).toContain(boss.weaknessText);
-      expect(tables.bosses).toContain(`${boss.hp.base} + ${boss.hp.perPlayer} per player`);
+      expect(tables.bosses).toContain(`Vigil: ${boss.hp.base + boss.hp.perPlayer} per player`);
+      expect(tables.bosses).toContain(`Last Flame: ${boss.hp.base} + ${boss.hp.perPlayer} per hero`);
+      if (boss.coopIntent) expect(tables.bosses).toContain(`Co-op: +1 ${content.bossIntents.byId[boss.coopIntent]?.name} per extra player`);
     }
     for (const enemy of content.enemies.list) expect(tables.enemies).toContain(`**${enemy.name}**`);
     for (const toll of content.tolls.list) expect(tables.tolls).toContain(toll.text);

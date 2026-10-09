@@ -4,7 +4,7 @@ import { BossArt, HOUSES, PieceArt, RuneIcon } from '../../../art';
 import type { BossDef, BossIntentDef, ContentRegistry, EnemyDef, RankId } from '../../../engine/types';
 import { Chip } from '../../components/Chip';
 import { StatPills } from '../../components/StatPills';
-import { attackSummary, heroView, matchesQuery, moveSummary, patternSummary, rankName, traitNames } from '../../model/describe';
+import { attackSummary, bossCoopIntentText, bossHpSummary, heroView, matchesQuery, moveSummary, patternSummary, rankName, traitNames } from '../../model/describe';
 import { CodexEntry, EmptyResult, Fact, Facts } from './CodexEntry';
 
 export interface SectionProps {
@@ -199,6 +199,8 @@ function IntentLine({ intent }: { intent: BossIntentDef | undefined }): ReactEle
 
 function BossEntry({ boss, content, animated }: { boss: BossDef; content: ContentRegistry; animated: boolean }): ReactElement {
   const intentIds = [...new Set(boss.phases.flatMap((p) => p.intents))];
+  const hp = bossHpSummary(content, boss);
+  const coop = bossCoopIntentText(content, boss);
   return (
     <CodexEntry
       className="ww-entry--wide ww-entry--boss"
@@ -207,7 +209,7 @@ function BossEntry({ boss, content, animated }: { boss: BossDef; content: Conten
       subtitle={boss.epithet}
       badges={
         <span className="ww-badge ww-badge--gold">
-          HP {boss.hp.base} + {boss.hp.perPlayer} per player
+          HP {hp.vigil} (Vigil) · {hp.lastFlame} (Last Flame)
         </span>
       }
       flavor={boss.flavor}
@@ -215,6 +217,7 @@ function BossEntry({ boss, content, animated }: { boss: BossDef; content: Conten
       <Facts>
         <Fact label="Special">{boss.specialText}</Fact>
         <Fact label="Weakness">{boss.weaknessText}</Fact>
+        {coop && <Fact label="Co-op">{coop}, every Snuff Move.</Fact>}
         <Fact label="Immune">{boss.immune.map((i) => i.replace(/_/g, ' ')).join(', ')}</Fact>
       </Facts>
       <ol className="ww-boss__phases">

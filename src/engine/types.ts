@@ -884,6 +884,8 @@ export interface BossDef {
   specialText: string;
   weaknessText: string;
   phases: BossPhaseDef[];
+  /** Vigil co-op: the intent declared `coopScaling.bossIntentsPerExtraSeat` more times per extra seat (§10.1). */
+  coopIntent: string | null;
   hpBar: 'bell_rope' | 'crown_band' | 'wing_vein';
   look: string;
   flavor: string;
@@ -1157,6 +1159,14 @@ export interface RuleConstants {
   dawnRelightHp: number;
   /** Guttered King: CHECK! shows at these escape counts (CHECKMATE numbers live on the boss special). */
   checkWarnEscapes: number[];
+  /** TEMP experiment knobs. */
+  xMothmaker: { rivalUnits: boolean; ready: boolean };
+  /**
+   * Vigil co-op scaling (§10.1, §13.3.2): what each seat beyond the first adds. Initial enemies
+   * and Plumes per placement: that many more. Boss HP: that share of the solo HP more. Boss
+   * intents: that many more copies of the boss's `coopIntent` at every Snuff Move.
+   */
+  coopScaling: { enemiesPerExtraSeat: number; plumesPerExtraSeat: number; bossHpPerExtraSeat: number; bossIntentsPerExtraSeat: number };
   glory: {
     rivalUnit: number;
     rivalHero: number;
@@ -1174,6 +1184,8 @@ export interface RuleConstants {
     selfRelight: number;
     bossToll: number;
     dawnPerCandle: number;
+    /** The most Dread one Dawn can remove (§13.6). */
+    dawnMax: number;
     thresholds: Array<{ id: DreadThresholdId; num: number; den: number }>;
   };
   chandlery: {

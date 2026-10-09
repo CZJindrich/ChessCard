@@ -12,7 +12,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { loadBaseContent } from '../src/engine/content';
 import type { BossDef, ContentRegistry, EnemyDef } from '../src/engine/types';
-import { heroView, moveSummary, patternSummary, rankName } from '../src/ui/model/describe';
+import { bossCoopIntentText, bossHpSummary, heroView, moveSummary, patternSummary, rankName } from '../src/ui/model/describe';
 
 export const RULES_DOC = fileURLToPath(new URL('../docs/RULES.md', import.meta.url));
 
@@ -73,18 +73,18 @@ function enemiesTable(content: ContentRegistry): string {
 }
 
 function bossPhases(content: ContentRegistry, boss: BossDef): string {
-  return boss.phases
-    .map((phase, i) => {
-      const intents = phase.intents.map((id) => content.bossIntents.byId[id]?.name ?? id).join(', ');
-      return `${i + 1}: ${patternSummary(phase.move)}; ${intents}`;
-    })
-    .join('<br>');
+  const phases = boss.phases.map((phase, i) => {
+    const intents = phase.intents.map((id) => content.bossIntents.byId[id]?.name ?? id).join(', ');
+    return `${i + 1}: ${patternSummary(phase.move)}; ${intents}`;
+  });
+  const coop = bossCoopIntentText(content, boss);
+  return [...phases, ...(coop ? [`Co-op: ${coop}`] : [])].join('<br>');
 }
 
 function bossesTable(content: ContentRegistry): string {
   const rows = content.bosses.list.map((boss) => [
     `**${boss.name}**<br>*${boss.epithet}*`,
-    `${boss.hp.base} + ${boss.hp.perPlayer} per player`,
+    `Vigil: ${bossHpSummary(content, boss).vigil}<br>Last Flame: ${bossHpSummary(content, boss).lastFlame}`,
     boss.specialText,
     boss.weaknessText,
     bossPhases(content, boss),

@@ -19,6 +19,8 @@
   "selfRelightHp": 1,
   "dawnRelightHp": 1,
   "checkWarnEscapes": [1, 2],
+  "xMothmaker": { "rivalUnits": false, "ready": false },
+  "coopScaling": { "enemiesPerExtraSeat": 1, "plumesPerExtraSeat": 1, "bossHpPerExtraSeat": 1, "bossIntentsPerExtraSeat": 1 },
   "glory": {
     "rivalUnit": 1,
     "rivalHero": 3,
@@ -36,6 +38,7 @@
     "selfRelight": 1,
     "bossToll": 1,
     "dawnPerCandle": -1,
+    "dawnMax": 1,
     "thresholds": [
       { "id": "dimming", "num": 1, "den": 3 },
       { "id": "deep_dark", "num": 2, "den": 3 },

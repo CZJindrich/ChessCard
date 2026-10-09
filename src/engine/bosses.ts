@@ -22,7 +22,7 @@ import { streamPick } from './rng';
 import { createBossPiece, placeNear, summonTileTest } from './spawn';
 import { boardQuery, emit, isOver, livingPlayers, pieceList, removePiece, tileAt } from './state';
 import type { Ctx } from './state';
-import type { BossDef, BossState, ContentRegistry, Dir, EffectOfOp, GameState, Piece, Pos } from './types';
+import type { BossDef, BossPhaseDef, BossState, ContentRegistry, Dir, EffectOfOp, GameState, Piece, Pos } from './types';
 
 // =============================================================================================
 // HP and phases (§10.1)
@@ -37,13 +37,36 @@ export function bossPlayerCount(s: GameState): number {
 }
 
 /**
- * round_half_up((base + perPlayer × P) × boss_hp_multiplier). The multiplier moves in steps of
- * 0.05, so it is applied in hundredths to stay exact (18 + 12 at 1.15 = 34.5 → 35).
+ * round_half_up(raw × boss_hp_multiplier). The multiplier moves in steps of 0.05, so it is applied
+ * in hundredths to stay exact (35 at 1.3 = 45.5 → 46); `raw` is exact to two decimals.
  */
-export function bossMaxHp(def: BossDef, players: number, multiplier: number): number {
-  const raw = def.hp.base + def.hp.perPlayer * players;
+function scaleBossHp(raw: number, multiplier: number): number {
   const hundredths = Math.round(multiplier * 100);
-  return Math.max(1, Math.floor((raw * hundredths + 50) / 100));
+  return Math.max(1, Math.floor((Math.round(raw * 100) * hundredths + 5000) / 10000));
+}
+
+/** Last Flame: round_half_up((base + perPlayer × P) × boss_hp_multiplier). */
+export function bossMaxHp(def: BossDef, players: number, multiplier: number): number {
+  return scaleBossHp(def.hp.base + def.hp.perPlayer * players, multiplier);
+}
+
+/** The solo HP, base + perPlayer (Vigil with one seat). */
+export function bossSoloHp(def: BossDef): number {
+  return def.hp.base + def.hp.perPlayer;
+}
+
+/**
+ * Vigil: round_half_up(solo HP × (1 + k × (P − 1)) × boss_hp_multiplier), k =
+ * `coopScaling.bossHpPerExtraSeat` (k = 1: the solo HP once per seat).
+ */
+export function vigilBossMaxHp(def: BossDef, seats: number, perExtraSeat: number, multiplier: number): number {
+  return scaleBossHp(bossSoloHp(def) * (1 + perExtraSeat * Math.max(0, seats - 1)), multiplier);
+}
+
+/** The boss's max HP for this game's mode and P (§10.1). */
+export function bossMaxHpFor(s: GameState, reg: ContentRegistry, def: BossDef, players: number): number {
+  const multiplier = s.config.boss_hp_multiplier;
+  return s.config.mode === 'vigil' ? vigilBossMaxHp(def, players, reg.rules.coopScaling.bossHpPerExtraSeat, multiplier) : bossMaxHp(def, players, multiplier);
 }
 
 /** `enterAt [a, b]`: the phase starts when HP ≤ ⌊max HP × a / b⌋. */
@@ -126,7 +149,7 @@ export function spawnBoss(ctx: Ctx, anchor: Pos | null): void {
   const at = anchor ?? centreAnchor(s, size);
   clearFootprint(ctx, at, size);
   const players = bossPlayerCount(s);
-  const maxHp = bossMaxHp(def, players, s.config.boss_hp_multiplier);
+  const maxHp = bossMaxHpFor(s, reg, def, players);
   const piece = createBossPiece(s, def, at, maxHp);
   s.boss = {
     id: def.id,
@@ -170,6 +193,17 @@ function declareBossIntents(ctx: Ctx, boss: Piece, intentIds: readonly string[])
   if (declared.length > 0) addLog(ctx, `${pieceName(reg, boss)} readies ${declared.join(', ')}.`);
 }
 
+/**
+ * The intents a boss declares at a Snuff Move (§10.1): its phase's list, then in Vigil its
+ * `coopIntent` k × (P − 1) more times (k = `coopScaling.bossIntentsPerExtraSeat`).
+ */
+export function bossTurnIntents(s: GameState, reg: ContentRegistry, def: BossDef, phase: BossPhaseDef): string[] {
+  const coop = def.coopIntent;
+  if (coop === null || s.config.mode !== 'vigil') return phase.intents;
+  const extra = reg.rules.coopScaling.bossIntentsPerExtraSeat * (bossPlayerCount(s) - 1);
+  return extra > 0 ? [...phase.intents, ...Array.from({ length: extra }, () => coop)] : phase.intents;
+}
+
 /** snuff_move, before every enemy: the boss moves, then declares every intent of its phase. */
 export function bossSnuffMove(ctx: Ctx): void {
   const found = activeBoss(ctx.s, ctx.reg);
@@ -177,9 +211,10 @@ export function bossSnuffMove(ctx: Ctx): void {
   const { boss, state, def } = found;
   const phase = def.phases[state.phase - 1] ?? def.phases[0];
   if (!phase) return;
-  moveBoss(ctx, boss, phase.move, phase.intents);
+  const intents = bossTurnIntents(ctx.s, ctx.reg, def, phase);
+  moveBoss(ctx, boss, phase.move, intents);
   if (isOver(ctx.s) || ctx.s.pieces[boss.id] !== boss) return;
-  declareBossIntents(ctx, boss, phase.intents);
+  declareBossIntents(ctx, boss, intents);
 }
 
 // =============================================================================================
@@ -315,7 +350,8 @@ function checkmate(ctx: Ctx, found: ActiveBoss, args: Record<string, number | st
   if (updateEscapes(s, boss).length > 0) return;
   const maxCrowns = numArg(args.maxCrowns, 3);
   if (state.crowns >= maxCrowns) return;
-  const damage = Math.ceil((state.maxHp * numArg(args.damagePct, 15)) / 100);
+  const hpBase = s.config.mode === 'vigil' ? vigilBossMaxHp(found.def, 1, 0, s.config.boss_hp_multiplier) : state.maxHp;
+  const damage = Math.ceil((hpBase * numArg(args.damagePct, 15)) / 100);
   state.crowns += 1;
   const seats = boxingSeats(s, boss);
   const lost = Math.min(damage, boss.hp);

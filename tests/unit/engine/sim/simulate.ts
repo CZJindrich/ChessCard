@@ -6,7 +6,7 @@
  */
 import { customSelection, NO_FLAGS, resolveConfig } from '../../../../src/config';
 import { activeSeats, applyAction, botChoice, createGame, lastFlameStandings, pendingAutomation, planTurn } from '../../../../src/engine';
-import type { Action, BotLevel, DifficultyId, GameState, GloryReason, LengthId, ModeId, RuleValues } from '../../../../src/engine';
+import type { Action, BotLevel, DifficultyId, DreadCause, GameState, GloryReason, LengthId, ModeId, RuleValues } from '../../../../src/engine';
 
 export interface SimSeat {
   kind: BotLevel;
@@ -40,6 +40,9 @@ export interface SimSeatResult {
   alive: boolean;
   /** Last Flame: Glory by reason (empty in Vigil). */
   gloryBy: Partial<Record<GloryReason, number>>;
+  /** Units (not heroes) of this seat that died, and how many of them a rival seat felled. */
+  unitsLost: number;
+  unitsLostToRivals: number;
 }
 
 export interface SimGameResult {
@@ -71,6 +74,8 @@ export interface SimGameResult {
   bossCrowns: number;
   /** Vigil: Dread when each regular Night reached Dawn (before the Dawn recovery). */
   dreadBeforeDawn: number[];
+  /** Vigil: net Dread change by cause on the regular Nights (Dawn recovery is negative) and on the Boss Night. */
+  dreadBy: { regular: Partial<Record<DreadCause, number>>; boss: Partial<Record<DreadCause, number>> };
   seatsResult: SimSeatResult[];
 }
 
@@ -136,8 +141,10 @@ export function simulateGame(opts: SimGameOptions): SimGameResult {
     bossRounds: 0,
     bossCrowns: 0,
     dreadBeforeDawn: [],
+    dreadBy: { regular: {}, boss: {} },
     seatsResult: [],
   };
+  const unitsLost = s.players.map(() => ({ all: 0, rivals: 0 }));
   let turn: Turn | null = null;
   const plan = (seat: number): Action[] => {
     const t = now();
@@ -173,14 +180,25 @@ export function simulateGame(opts: SimGameOptions): SimGameResult {
       turn = { seat: turn.seat, plan: plan(turn.seat) };
       continue;
     }
+    for (const e of result.events) {
+      if (e.type === 'piece_died' && e.kind === 'unit') {
+        const owner = s.pieces[e.pieceId]?.owner;
+        if (owner === null || owner === undefined) continue;
+        unitsLost[owner].all += 1;
+        if (e.killerSeat !== null && e.killerSeat !== owner) unitsLost[owner].rivals += 1;
+      }
+      if (e.type !== 'dread_changed') continue;
+      const by = s.isBossNight ? out.dreadBy.boss : out.dreadBy.regular;
+      by[e.cause] = (by[e.cause] ?? 0) + e.to - e.from;
+    }
     if (action.type === 'end_turn') turn = null;
     if (action.type !== 'advance') out.actions += 1;
     s = result.state;
   }
-  return finish(s, out);
+  return finish(s, out, unitsLost);
 }
 
-function finish(s: GameState, out: SimGameResult): SimGameResult {
+function finish(s: GameState, out: SimGameResult, unitsLost: ReadonlyArray<{ all: number; rivals: number }>): SimGameResult {
   out.finished = s.result !== null;
   out.nights = s.night;
   out.rounds = s.stats.roundsPlayed;
@@ -202,6 +220,8 @@ function finish(s: GameState, out: SimGameResult): SimGameResult {
     placement: standings.find((st) => st.seat === p.seat)?.placement ?? null,
     alive: !p.eliminated,
     gloryBy: { ...(s.lastFlame?.gloryBySeat[p.seat] ?? {}) },
+    unitsLost: unitsLost[p.seat]?.all ?? 0,
+    unitsLostToRivals: unitsLost[p.seat]?.rivals ?? 0,
   }));
   return out;
 }

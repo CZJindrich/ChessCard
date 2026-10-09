@@ -30,6 +30,7 @@
         "banner": "The clapper tears loose!"
       }
     ],
+    "coopIntent": "bell_drop",
     "hpBar": "bell_rope",
     "look": "A riveted iron bell with a smoke robe and a coal-red clapper.",
     "flavor": "When the great bell tolls in silence, even prayers go out."
@@ -75,6 +76,7 @@
         "banner": "The King melts, and the floor runs hot."
       }
     ],
+    "coopIntent": "sceptre_sweep",
     "hpBar": "crown_band",
     "look": "A mountain of melted candles crowned with 7 moonfire wicks.",
     "flavor": "He was the first candle of Sconcewick. Now he is every one that failed."
@@ -110,6 +112,7 @@
         "banner": "Her children wake in the dark."
       }
     ],
+    "coopIntent": "dust_storm",
     "hpBar": "wing_vein",
     "look": "Stained-glass moth wings and an abdomen glowing with eaten light.",
     "flavor": "She fell from the Moth-Moon, hungry for every light she ever loved."

@@ -257,8 +257,7 @@ describe('numbers match the GDD', () => {
 
   it('bosses and their intents (§10)', () => {
     const boss = (id: string) => content.bosses.byId[id];
-    // E5 balance pass: base HP retuned so the three solo Boss Nights land near the same win rate
-    // (GDD §10 lists the original 14+10P / 18+12P / 16+11P).
+    // Base HP retuned so the three solo Boss Nights land near the same win rate (E5).
     expect([boss('hush_hierophant').hp, boss('guttered_king').hp, boss('nocturna').hp]).toEqual([
       { base: 25, perPlayer: 10 },
       { base: 48, perPlayer: 12 },
@@ -272,6 +271,13 @@ describe('numbers match the GDD', () => {
     expect(boss('guttered_king').phases.map((p) => p.enterAt)).toEqual([null, [2, 3], [1, 3]]);
     expect(boss('guttered_king').special).toEqual({ op: 'custom', id: 'smothered_mate', args: { damagePct: 15, maxCrowns: 3 } });
     expect(boss('nocturna').flying).toBe(true);
+    // Vigil co-op: each seat beyond the first adds one more of these at every Snuff Move (§10.1).
+    expect(content.bosses.list.map((b) => [b.id, b.coopIntent])).toEqual([
+      ['hush_hierophant', 'bell_drop'],
+      ['guttered_king', 'sceptre_sweep'],
+      ['nocturna', 'dust_storm'],
+    ]);
+    expect(content.rules.coopScaling).toEqual({ enemiesPerExtraSeat: 1, plumesPerExtraSeat: 1, bossHpPerExtraSeat: 1, bossIntentsPerExtraSeat: 1 });
     const kingSummon = boss('guttered_king').phases[1].onEnter[0] as EffectOfOp<'summon'>;
     expect(kingSummon).toMatchObject({ unit: 'gutter_pawn', count: { byPlayers: [1, 1, 2, 2] }, modeOverrides: { last_flame: { unit: 'drip_hulk' } } });
     const intents = Object.fromEntries(content.bossIntents.list.map((i) => [i.id, [i.area, i.damage]]));
@@ -280,7 +286,6 @@ describe('numbers match the GDD', () => {
       sceptre_sweep: ['beam2', 2], wax_spit: ['single', 1], wing_gust: ['beam2', 1], hunger: ['single', 3], dust_storm: ['square3', 1],
     });
     expect(content.bossIntents.byId.hushwave.reversible).toBe(false);
-    // E5 balance pass: devour_light heals 2 (GDD §10.5 says 3).
     expect(content.bossIntents.byId.hunger.extra).toEqual({ op: 'custom', id: 'devour_light', args: { heal: 2 } });
   });
 
@@ -290,7 +295,9 @@ describe('numbers match the GDD', () => {
       starting_dread: 0, dread_max: 14, initial_enemies_mod: -1, plumes_mod: -1, enemy_hp_mod: 'none',
       boss_hp_multiplier: 0.8, heal_between_nights: 6, extra_smokestack: false, retry_night: true,
     });
-    expect(v('witching_hour')).toMatchObject({ starting_dread: 3, dread_max: 12, enemy_hp_mod: 'all', boss_hp_multiplier: 1.3, retry_night: false });
+    expect(v('midnight')).toMatchObject({ starting_dread: 1, dread_max: 12, enemy_hp_mod: 'non_minions', boss_hp_multiplier: 1.2, retry_night: false });
+    expect(v('witching_hour')).toMatchObject({ starting_dread: 2, dread_max: 12, plumes_mod: 0, enemy_hp_mod: 'all', boss_hp_multiplier: 1.3, retry_night: false });
+    expect(content.rules.dread).toMatchObject({ dawnPerCandle: -1, dawnMax: 1 });
     expect(content.lengths.list.map((l) => [l.id, l.vigil.nights, l.last_flame.nights, l.last_flame.boss_rounds])).toEqual([
       ['short', 3, 3, 5],
       ['standard', 4, 4, 5],

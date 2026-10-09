@@ -28,7 +28,7 @@
  * `opportunity` credits Strikes still unused this turn (the best target each piece could hit
  * now), so the beam keeps a move that sets up a kill; it never counts for the final choice.
  */
-import { bossPlayersPhaseEnd } from '../bosses';
+import { bossPlayersPhaseEnd, bossTurnIntents } from '../bosses';
 import { footprintDistance } from '../geometry';
 import { runSnuffStrikeStep } from '../phases';
 import { riseAll } from '../snuff';
@@ -190,9 +190,10 @@ function litShrines(s: GameState): number {
 /** Boss intents of the current phase that bite the brightest light (Nocturna's Hunger), with their reach. */
 function lightBiters(s: GameState, reg: ContentRegistry): number[] {
   const boss = s.boss;
-  const phase = boss ? reg.bosses.byId[boss.id]?.phases[boss.phase - 1] : undefined;
+  const def = boss ? reg.bosses.byId[boss.id] : undefined;
+  const phase = boss ? def?.phases[boss.phase - 1] : undefined;
   const reaches: number[] = [];
-  for (const id of phase?.intents ?? []) {
+  for (const id of def && phase ? bossTurnIntents(s, reg, def, phase) : []) {
     const def = reg.bossIntents.byId[id];
     if (def?.targeting === 'brightest_light') reaches.push(def.reach.kind === 'within' ? def.reach.max : Math.max(s.board.w, s.board.h));
   }

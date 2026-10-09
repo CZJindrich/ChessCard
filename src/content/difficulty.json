@@ -41,7 +41,7 @@
     "candles": 3,
     "chip": "3 candles · Hard",
     "values": {
-      "starting_dread": 2,
+      "starting_dread": 1,
       "dread_max": 12,
       "initial_enemies_mod": 0,
       "plumes_mod": 0,
@@ -59,7 +59,7 @@
     "candles": 4,
     "chip": "4 candles · Brutal",
     "values": {
-      "starting_dread": 3,
+      "starting_dread": 2,
       "dread_max": 12,
       "initial_enemies_mod": 1,
       "plumes_mod": 0,
@@ -69,6 +69,6 @@
       "extra_smokestack": true,
       "retry_night": false
     },
-    "text": "Brutal. More Snuff, more Plumes, every enemy tougher."
+    "text": "Brutal. More Snuff, every enemy tougher, and Dread from the first Night."
   }
 ]

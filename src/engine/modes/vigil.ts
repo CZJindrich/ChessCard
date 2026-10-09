@@ -99,12 +99,14 @@ export function endVigil(ctx: Ctx, outcome: 'victory' | 'defeat' | 'conceded', c
   emit(ctx, { type: 'game_over', result });
 }
 
-/** Dawn step 2: Dread −1 per Vigil Candle still lit (not below 0). Returns the candles standing. */
+/**
+ * Dawn step 2 (§13.6): Dread `dawnPerCandle` per Vigil Candle still lit, at most `dawnMax` in all
+ * (shipped: −1 while any Candle stands), not below 0. Returns the candles standing.
+ */
 export function dawnDreadRecovery(ctx: Ctx): number {
+  const { dawnPerCandle, dawnMax } = ctx.reg.rules.dread;
   const lit = pieceList(ctx.s).filter((p) => p.kind === 'candle').length;
-  if (ctx.s.vigil && lit > 0) {
-    changeDread(ctx, ctx.reg.rules.dread.dawnPerCandle * lit, 'dawn', 'Dawn');
-  }
+  if (ctx.s.vigil && lit > 0) changeDread(ctx, Math.max(-dawnMax, dawnPerCandle * lit), 'dawn', 'Dawn');
   return lit;
 }
 

@@ -287,11 +287,15 @@ function resetPiecesForNight(s: GameState): void {
   }
 }
 
-function initialEnemyCount(s: GameState): number {
+/**
+ * Initial enemies (§13.3.2). Vigil: 1 + k × (P − 1) for P seats (k = `coopScaling.enemiesPerExtraSeat`),
+ * + tier on regular Nights (minimum 1) or + 0 on the Boss Night (minimum 0), + initial_enemies_mod.
+ */
+function initialEnemyCount(s: GameState, reg: ContentRegistry): number {
   if (s.config.mode === 'last_flame') return neutralEnemyCount(s);
-  const p = s.players.length;
-  if (s.isBossNight) return Math.max(0, p + s.config.initial_enemies_mod);
-  return Math.max(1, p + s.tier + s.config.initial_enemies_mod);
+  const seats = 1 + reg.rules.coopScaling.enemiesPerExtraSeat * (s.players.length - 1);
+  if (s.isBossNight) return Math.max(0, seats + s.config.initial_enemies_mod);
+  return Math.max(1, seats + s.tier + s.config.initial_enemies_mod);
 }
 
 /** first_vigil starts with the two scripted Sootlings of seat 1's hero (§15.2). */
@@ -357,7 +361,7 @@ export function plumePlacement(ctx: Ctx, index: number): void {
       if (pos) createPlume(ctx, pos, plume.enemy, 'script');
     }
   } else if (s.config.mode === 'vigil') {
-    placePlumes(ctx, { count: vigilPlumeCount(s), source: 'schedule' });
+    placePlumes(ctx, { count: vigilPlumeCount(s, reg), source: 'schedule' });
   } else {
     placeLastFlamePlumes(ctx);
   }
@@ -415,8 +419,8 @@ export function enterNightSetup(ctx: Ctx): void {
   for (const stack of layout.smokestacks) if (!keepBoard) spawnEnemy(ctx, 'smokestack', stack, 'setup');
   if (!s.isBossNight && s.tier >= 2 && s.config.extra_smokestack && neutralsOn(s)) placeExtraSmokestack(ctx, layout.heroStarts);
   if (siteId === 'first_vigil') placeScriptedSootlings(ctx);
-  else if (s.config.mode === 'vigil') placeInitialEnemies(ctx, initialEnemyCount(s), layout.heroStarts);
-  else placeLastFlameNeutrals(ctx, initialEnemyCount(s));
+  else if (s.config.mode === 'vigil') placeInitialEnemies(ctx, initialEnemyCount(s, reg), layout.heroStarts);
+  else placeLastFlameNeutrals(ctx, initialEnemyCount(s, reg));
   plumePlacement(ctx, 0);
   requestHaunts(ctx);
   refreshGloamBell(s);

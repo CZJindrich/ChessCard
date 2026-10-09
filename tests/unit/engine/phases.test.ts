@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { activeSeats, getContent, pendingAutomation, validateAction } from '../../../src/engine';
+import { activeSeats, getContent, mergeMod, pendingAutomation, validateAction } from '../../../src/engine';
 import type { GameEvent, GameState } from '../../../src/engine';
 import { dealDamage } from '../../../src/engine/combat';
 import { drawCards } from '../../../src/engine/decks';
 import { draftOffer } from '../../../src/engine/phases';
+import { dawnDreadRecovery } from '../../../src/engine/modes/vigil';
 import { makeCtx, unitsOf } from '../../../src/engine/state';
 import { act, blankScenario, candleAt, eventsOf, heroPiece, newGame, toPlayers, unitAt } from './helpers';
 
@@ -188,7 +189,7 @@ describe('Tally: self-relight (§13.1.3)', () => {
 });
 
 describe('Dawn and the Chandlery (§13.6)', () => {
-  it('Dawn: Snuff vanish, Dread recovers per Candle, heroes relight and heal, carry-over keeps 2 units', () => {
+  it('Dawn: Snuff vanish, Dread −1 while a Candle stands, heroes relight and heal, carry-over keeps 2 units', () => {
     let s = blankScenario('sconce_paladin', 'd2', { overrides: { starting_dread: 5, heal_between_nights: 4 } });
     candleAt(s, 'c3');
     candleAt(s, 'f3');
@@ -206,12 +207,28 @@ describe('Dawn and the Chandlery (§13.6)', () => {
     s = act(s, { type: 'carry_over', seat: 0, keep: [a.id] }).state;
     const { state, events } = act(s, { type: 'advance' });
     expect(Object.values(state.pieces).some((p) => p.side === 'snuff')).toBe(false);
-    expect(state.vigil?.dread).toBe(3);
+    // Two Candles still lit: −1 per Candle, but at most dawnMax (1) per Dawn.
+    expect(state.vigil?.dread).toBe(4);
     expect(unitsOf(state, 0).map((u) => u.id)).toEqual([a.id]);
     expect(heroPiece(state, 0)).toMatchObject({ hp: 6, ward: false });
     expect(state.players[0].hand).toHaveLength(0);
     expect(eventsOf(events, 'dawn')[0]).toMatchObject({ candlesLit: 2 });
     expect(state.phase).toBe('chandlery');
+  });
+
+  it('Dawn recovery (§13.1.2, §13.6): −1 per lit Candle, at most dawnMax; nothing when every Candle is snuffed', () => {
+    const s = blankScenario('sconce_paladin', 'd2', { overrides: { starting_dread: 5 } });
+    const dreadAfter = (state: GameState, content = reg): number | undefined => {
+      const ctx = makeCtx(structuredClone(state), content);
+      dawnDreadRecovery(ctx);
+      return ctx.s.vigil?.dread;
+    };
+    expect(dreadAfter(s)).toBe(5);
+    for (const square of ['c3', 'f3', 'h3']) candleAt(s, square);
+    expect(dreadAfter(s)).toBe(4);
+    const perCandle = mergeMod(reg, { rules: { dread: { dawnMax: 9 } } });
+    expect(perCandle.errors).toEqual([]);
+    expect(dreadAfter(s, perCandle.registry)).toBe(2);
   });
 
   it('Chandlery offers 3 different class/neutral cards (≥1 class), picks and Boons, then the next Night', () => {

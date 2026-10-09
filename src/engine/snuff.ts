@@ -798,9 +798,12 @@ export function riseAll(ctx: Ctx): void {
 // Placement schedule and setup spawns
 // =============================================================================================
 
-/** Plumes per Vigil placement (§13.3.2): max(1, 1 + ⌊P/2⌋ + plumes_mod), +1 with Black Sun. */
-export function vigilPlumeCount(s: GameState): number {
-  const base = Math.max(1, 1 + Math.floor(s.players.length / 2) + s.config.plumes_mod);
+/**
+ * Plumes per Vigil placement (§13.3.2): max(1, 1 + k × (P − 1) + plumes_mod) for P seats
+ * (k = `coopScaling.plumesPerExtraSeat`), +1 with Black Sun.
+ */
+export function vigilPlumeCount(s: GameState, reg: ContentRegistry): number {
+  const base = Math.max(1, 1 + reg.rules.coopScaling.plumesPerExtraSeat * (s.players.length - 1) + s.config.plumes_mod);
   return base + ruleDelta(s, 'plumes_per_placement', null);
 }
 

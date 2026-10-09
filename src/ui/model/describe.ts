@@ -4,7 +4,7 @@
  * themselves.
  */
 import type { CardArtData } from '../../art';
-import type { AttackDef, CardDef, ContentRegistry, DirSet, EnemyDef, HeroDef, Pattern, RuneId, UnitDef } from '../../engine/types';
+import type { AttackDef, BossDef, CardDef, ContentRegistry, DirSet, EnemyDef, HeroDef, Pattern, RuneId, UnitDef } from '../../engine/types';
 
 const DIR_WORDS: Readonly<Record<DirSet, string>> = { orth: 'orthogonal', diag: 'diagonal', all: 'any direction' };
 
@@ -158,6 +158,25 @@ export function heroView(content: ContentRegistry, hero: HeroDef): HeroView {
 export function heroFirstName(content: ContentRegistry, heroId: string | null): string {
   if (!heroId) return 'Random hero';
   return content.heroes.byId[heroId]?.name ?? heroId;
+}
+
+/**
+ * Boss HP before the difficulty multiplier (§10.1). Vigil: the solo HP, plus a share of it per
+ * extra seat ("35 per player" when each seat adds the full solo HP); Last Flame: base + per hero.
+ */
+export function bossHpSummary(content: ContentRegistry, boss: BossDef): { vigil: string; lastFlame: string } {
+  const solo = boss.hp.base + boss.hp.perPlayer;
+  const share = content.rules.coopScaling.bossHpPerExtraSeat;
+  const extra = Math.round(solo * share * 100) / 100;
+  const vigil = share === 1 ? `${solo} per player` : share === 0 ? `${solo}` : `${solo}, +${extra} per extra player`;
+  return { vigil, lastFlame: `${boss.hp.base} + ${boss.hp.perPlayer} per hero` };
+}
+
+/** "+1 Bell Drop per extra player" (Vigil co-op, §10.1), or null when the boss does not scale its intents. */
+export function bossCoopIntentText(content: ContentRegistry, boss: BossDef): string | null {
+  const count = content.rules.coopScaling.bossIntentsPerExtraSeat;
+  if (!boss.coopIntent || count === 0) return null;
+  return `+${count} ${content.bossIntents.byId[boss.coopIntent]?.name ?? boss.coopIntent} per extra player`;
 }
 
 export function rankName(content: ContentRegistry, rank: string): string {

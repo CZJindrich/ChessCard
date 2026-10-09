@@ -445,7 +445,7 @@ The minimum deck size is 8.
 |---|---|---|---|---|---|
 | `shield_bash` | Shield Bash | Rite | 1 | Common | Deal 2 damage to an enemy adjacent to your hero and push it 2 tiles away from your hero. |
 | `waxen_ward` | Waxen Ward | Rite | 1 | Common | Give Ward to an allied piece or Vigil Candle within 3. |
-| `call_the_squire` | Call the Squire | Summon | 2 | Common | Summon a Sconce Squire (it arrives with Ward). |
+| `call_the_squire` | Call the Squire | Summon | 1 | Common | Summon a Sconce Squire (it arrives with Ward). |
 | `sunshield_charge` | Sunshield Charge | Rite | 2 | Common | Your hero slides up to 3 tiles in a straight line (orthogonal or diagonal), following the slide rules (§5.2). Then deal 2 damage to one enemy adjacent to it. This does not use its Move. |
 | `muster_the_ram` | Muster the Ram | Summon | 3 | Rare | Summon a Brass Ram. |
 | `oath_of_tallow` | Oath of Tallow | Charm | 2 | Rare | Attach to your hero: +1 ATK, and its strikes push the target 1 tile away if it survives. |
@@ -601,7 +601,7 @@ One routine places every spawn, summon or teleport that names an anchor: boss su
 - **Size:** 2×2. All bosses are immune to displacement, Gloam and Snuff attacks.
 - **HP:** round_half_up((base + perPlayer × P) × `boss_hp_multiplier`).
   - P = number of Vigil seats (AI allies included), or the number of Last Flame heroes not eliminated at the start of the Boss Night (minimum 1).
-  - Example: Guttered King, solo, `midnight`: (18 + 12) × 1.15 = 34.5, which rounds to 35.
+  - Example: Hush Hierophant, solo, `witching_hour`: (25 + 10) × 1.3 = 45.5, which rounds to 46.
 - **Phases:** phase 2 starts when HP ≤ ⌊max HP × 2/3⌋, and phase 3 when HP ≤ ⌊max HP × 1/3⌋.
   - If one hit crosses both thresholds, both `onEnter` effects run, in order.
   - Damage is not capped at thresholds.
@@ -615,7 +615,7 @@ One routine places every spawn, summon or teleport that names an anchor: boss su
 - **Death:** the boss's death wins the Night in Vigil. In both modes it removes every Snuff on the board, the Clapper included.
 
 ### 10.2 Hush Hierophant — "The Bell That Swallows Song"
-- **HP:** base 14, perPlayer 10. **Immune:** displacement, Gloam.
+- **HP:** base 25, perPlayer 10. **Immune:** displacement, Gloam.
 - **Art:** a riveted iron bell with a smoke robe and a coal-red clapper.
 
 | Phase | Move | Intents | On enter |
@@ -628,7 +628,7 @@ One routine places every spawn, summon or teleport that names an anchor: boss su
 - **Weakness:** "Hollow bell: Strikes from pieces adjacent to it deal +1 damage." (Cards do not get the bonus.)
 
 ### 10.3 The Guttered King — "Monarch of Melted Wax"
-- **HP:** base 18, perPlayer 12. **Immune:** displacement, Gloam, Hot Wax.
+- **HP:** base 48, perPlayer 12. **Immune:** displacement, Gloam, Hot Wax.
 - **Art:** a mountain of melted candles crowned with 7 moonfire wicks.
 
 | Phase | Move | Intents | On enter |
@@ -648,7 +648,7 @@ One routine places every spawn, summon or teleport that names an anchor: boss su
 - **Weakness:** "Box him in: block all 8 escape steps for CHECKMATE."
 
 ### 10.4 Nocturna — "Daughter of the Moth-Moon"
-- **HP:** base 16, perPlayer 11. **Immune:** displacement, Gloam, Hot Wax. Flying.
+- **HP:** base 10, perPlayer 11. **Immune:** displacement, Gloam, Hot Wax. Flying.
 - **Art:** stained-glass moth wings and an abdomen glowing with eaten light.
 
 | Phase | Move | Intents | On enter |
@@ -670,7 +670,7 @@ One routine places every spawn, summon or teleport that names an anchor: boss su
 | `sceptre_sweep` | Guttered King | `beam2` | 4 tiles from one side | 2 | `pierce` | The orthogonal direction with the most Wickfolk pieces. |
 | `wax_spit` | Guttered King | `single` | Distance 2–4 | 1 | Artillery. Creates Hot Wax on the tile. | A tile with a hero, else any Wickfolk piece. |
 | `wing_gust` | Nocturna | `beam2` | 3 tiles from one side | 1 | `pierce`, push 2 in the gust direction | The orthogonal direction with the most Wickfolk pieces. |
-| `hunger` | Nocturna | `single` | Within 6 | 3 | `devour_light`: if it puts out a Lit Shrine, snuffs a Vigil Candle, destroys a Lantern or fells a piece, Nocturna heals 3 HP. | The brightest light: Lit Shrine > Lantern > Vigil Candle > hero. Ties: nearest, then reading order. |
+| `hunger` | Nocturna | `single` | Within 6 | 3 | `devour_light`: if it puts out a Lit Shrine, snuffs a Vigil Candle, destroys a Lantern or fells a piece, Nocturna heals 2 HP. | The brightest light: Lit Shrine > Lantern > Vigil Candle > hero. Ties: nearest, then reading order. |
 | `dust_storm` | Nocturna | `square3` | Centre within 4 | 1 | Applies Dazed | The tile hitting the most Wickfolk pieces. |
 
 ---
@@ -1100,9 +1100,9 @@ The parameters are listed in the Engineering summary.
 | Chip | 1 candle · Gentle | 2 candles · Normal | 3 candles · Hard | 4 candles · Brutal |
 | `starting_dread` / `dread_max` | 0 / 14 | 0 / 12 | 2 / 12 | 3 / 12 |
 | `initial_enemies_mod` | −1 | 0 | 0 | +1 |
-| `plumes_mod` | −1 | 0 | 0 | +1 |
+| `plumes_mod` | −1 | 0 | 0 | 0 |
 | `enemy_hp_mod` | `none` | `none` | `non_minions` | `all` |
-| `boss_hp_multiplier` | 0.80 | 1.00 | 1.15 | 1.30 |
+| `boss_hp_multiplier` | 0.80 | 1.00 | 1.20 | 1.30 |
 | `heal_between_nights` | 6 | 4 | 3 | 2 |
 | `extra_smokestack` | Off | Off | On | On |
 | `retry_night` | On | On | Off | Off |
@@ -1218,7 +1218,7 @@ Audio settings persist in `localStorage` under `chesscard.audio` (already implem
 
 | Hero | Start | Sootlings (aiming at) | Opening hand | Guaranteed line | Flame used |
 |---|---|---|---|---|---|
-| Brannoc | d2 | c4 (Candle c3), f5 (Candle g5) | `light_a_taper`, `spark`, `shield_bash`, `waxen_ward`, `call_the_squire` | Move d2→d3. Strike c4; Take to c4. Spark f5 (distance 3). Summon a Squire. | 1 + 2 = 3 |
+| Brannoc | d2 | c4 (Candle c3), f5 (Candle g5) | `light_a_taper`, `spark`, `shield_bash`, `waxen_ward`, `call_the_squire` | Move d2→d3. Strike c4; Take to c4. Spark f5 (distance 3). Summon a Squire. | 1 + 1 = 2 |
 | Velveteen | e2 | d4 (Candle c3), g4 (Candle g5) | `light_a_taper`, `spark`, `loose_a_moth`, `velvet_pull`, `moth_dust` | Leap-strike d4 from e2 (a Velvet Moth appears on d4). Spark g4 (distance 2). Loose a Moth. | 1 + 1 = 2 |
 | Wicklow | d2 | d4 (Candle c3), b4 (Candle c3) | `hang_a_lantern`, `tinder_bolt`, `spark`, `prime_the_mortar`, `mend_the_wick` | Strike d4 up the d-file. Slide d2→b2. Tinder Bolt b4 up the b-file. Hang a Lantern. | 1 + 2 = 3 |
 | Vey | d2 | f4 (Candle f3), g3 (Candle f3) | `strike_a_cinder`, `feint`, `searing_edge`, `spark`, `light_a_taper` | Strike f4 through e3; Take to f4. Flourish: strike g3; Take to g3. Strike a Cinder. | 1 |
