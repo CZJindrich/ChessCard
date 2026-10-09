@@ -2,7 +2,9 @@
  * The bottom bar (GDD §15.4): deck and discard counts, the Flame sconce row (spent Flame
  * smokes; the Flame a selected card would spend pulses), the hand fan, the Hero Power, Undo,
  * Hint and the End Turn wax seal (it pulses when nothing is left to do; hovering it previews
- * the Snuff Strike). During Night setup the hand gives way to the deploy bar.
+ * the Snuff Strike). During Night setup the hand gives way to the deploy bar; a Last Flame
+ * player who is out of the Trial sees a spectator's note instead of a hand. Online, the decision
+ * timer burns beside End Turn.
  */
 import { useMemo, useRef, type ReactElement } from 'react';
 import { DeckIcon, DiscardIcon, EndTurnSeal, FlameIcon, HeroPowerIcon, HintIcon, UndoIcon } from '../../art';
@@ -11,9 +13,11 @@ import type { CardTargetInfo, GameState } from '../../engine/types';
 import { hasRemainingActions, reasonLine } from '../../game';
 import { usePresentation } from '../app/services';
 import { Tooltip } from '../components/Tooltip';
-import { useController, useGameSnapshot } from './context';
+import { useController, useGameSelector } from './context';
 import { HandFan } from './HandFan';
 import { NightSetupBar } from './NightSetupBar';
+import { ordinal } from './titles';
+import { TurnTimer } from './TurnTimer';
 
 function FlameSconces({ state, seat, pending }: { state: GameState; seat: number | null; pending: number }): ReactElement {
   const presentation = usePresentation();
@@ -59,7 +63,7 @@ function shakeKey(base: string, active: boolean, id: number | undefined): string
 
 function PowerButton({ state, seat }: { state: GameState; seat: number }): ReactElement {
   const controller = useController();
-  const snap = useGameSnapshot();
+  const snap = useGameSelector((s) => ({ notice: s.notice, armed: s.selection.power !== null }));
   const player = state.players[seat];
   const info: CardTargetInfo = useMemo(() => powerTargets(state, seat), [state, seat]);
   const shaking = snap.notice?.anchor.kind === 'control' && snap.notice.anchor.id === 'power';
@@ -69,7 +73,7 @@ function PowerButton({ state, seat }: { state: GameState; seat: number }): React
       <button
         key={shakeKey('power', shaking, snap.notice?.id)}
         type="button"
-        className={`ww-ctrl ww-ctrl--power${info.playable ? '' : ' ww-ctrl--blocked'}${snap.selection.power ? ' ww-ctrl--on' : ''}${shaking ? ' ww-shake' : ''}`}
+        className={`ww-ctrl ww-ctrl--power${info.playable ? '' : ' ww-ctrl--blocked'}${snap.armed ? ' ww-ctrl--on' : ''}${shaking ? ' ww-shake' : ''}`}
         aria-label={label}
         onClick={() => controller.selectPower()}
       >
@@ -81,7 +85,7 @@ function PowerButton({ state, seat }: { state: GameState; seat: number }): React
 
 function TurnControls({ seat }: { seat: number | null }): ReactElement {
   const controller = useController();
-  const snap = useGameSnapshot();
+  const snap = useGameSelector((s) => ({ latest: s.latest, animating: s.animating, notice: s.notice, previewEndTurn: s.selection.previewEndTurn }));
   const presentation = usePresentation();
   const { latest } = snap;
   const acting = seat !== null && latest.phase === 'players';
@@ -92,7 +96,7 @@ function TurnControls({ seat }: { seat: number | null }): ReactElement {
   const lastPointer = useRef('mouse');
   // Touch: the first tap shows the Snuff Strike preview and arms the seal, the second ends the turn (§15.7).
   const onEndTurn = (): void => {
-    if (lastPointer.current === 'touch' && !snap.selection.previewEndTurn) {
+    if (lastPointer.current === 'touch' && !snap.previewEndTurn) {
       controller.setEndTurnPreview(true);
       return;
     }
@@ -100,6 +104,7 @@ function TurnControls({ seat }: { seat: number | null }): ReactElement {
   };
   return (
     <div className="ww-controls">
+      <TurnTimer />
       {seat !== null && <PowerButton state={latest} seat={seat} />}
       <Tooltip content="Undo (Z)">
         <button
@@ -136,7 +141,7 @@ function TurnControls({ seat }: { seat: number | null }): ReactElement {
         }}
         onClick={onEndTurn}
       >
-        <EndTurnSeal size={84} pulsing={nothingLeft} armed={snap.selection.previewEndTurn} animated={!presentation.reduced_motion} label={acting ? 'END TURN' : 'WAIT'} />
+        <EndTurnSeal size={84} pulsing={nothingLeft} armed={snap.previewEndTurn} animated={!presentation.reduced_motion} label={acting ? 'END TURN' : 'WAIT'} />
       </button>
     </div>
   );
@@ -149,22 +154,43 @@ function handSeat(state: GameState, uiSeat: number | null, controlled: readonly 
   return state.activeSeat ?? (state.players.length > 0 ? 0 : null);
 }
 
+/** Last Flame, out of the Trial: watch the rest; haunt at each Plume placement (§13.2.6–7). */
+function Spectating({ state, seat }: { state: GameState; seat: number }): ReactElement {
+  const player = state.players[seat];
+  const band = player?.eliminationBand;
+  const haunting = state.config.haunting;
+  return (
+    <div className="ww-spectate" role="status" data-testid="spectating">
+      <span className="ww-spectate__title">Out of the Trial{band !== null && band !== undefined ? ` · ${ordinal(band)} to fall` : ''}</span>
+      <span className="ww-spectate__text">
+        {player?.name ?? 'This player'} watches the rest of the Trial.{haunting ? ' At each Plume placement, haunt a rival with a Sootling Plume.' : ''}
+      </span>
+    </div>
+  );
+}
+
 export function HandBar(): ReactElement {
-  const snap = useGameSnapshot();
   const controller = useController();
-  const { latest, uiSeat } = snap;
+  const snap = useGameSelector((s) => ({
+    latest: s.latest,
+    state: s.state,
+    uiSeat: s.uiSeat,
+    controlledSeats: s.controlledSeats,
+    // The Flame a selected card or Power would spend pulses in the sconce row.
+    pending: s.selection.card || s.selection.power ? (controller.targetInfo()?.cost ?? 0) : 0,
+  }));
+  const { latest, uiSeat, pending } = snap;
   const seat = handSeat(latest, uiSeat, snap.controlledSeats);
-  const setup = latest.phase === 'night_setup' && uiSeat !== null;
-  // The Flame a selected card or Power would spend pulses in the sconce row.
-  const pending = snap.selection.card || snap.selection.power ? (controller.targetInfo()?.cost ?? 0) : 0;
+  const setup = latest.phase === 'night_setup' && uiSeat !== null && !(latest.players[uiSeat]?.eliminated ?? false);
+  const out = seat !== null && (latest.players[seat]?.eliminated ?? false) && snap.controlledSeats.includes(seat);
   return (
     <footer className="ww-handbar">
       <div className="ww-handbar__left">
-        <Piles state={snap.state} seat={seat} />
-        <FlameSconces state={snap.state} seat={seat} pending={pending} />
+        {!out && <Piles state={snap.state} seat={seat} />}
+        {!out && <FlameSconces state={snap.state} seat={seat} pending={pending} />}
       </div>
       <div className="ww-handbar__centre">
-        {setup ? <NightSetupBar /> : <HandFan seat={seat} />}
+        {out && seat !== null ? <Spectating state={latest} seat={seat} /> : setup ? <NightSetupBar /> : <HandFan seat={seat} />}
       </div>
       <div className="ww-handbar__right">
         <TurnControls seat={uiSeat} />

@@ -1,8 +1,10 @@
 /**
- * Keyboard controls (GDD §15.7): Space end turn, Enter confirm, Z undo, 1–8 select a card, Tab
- * cycle Ready pieces, Esc cancel (with nothing to cancel: the pause menu), P Hero Power, C claim
- * turn, D deck viewer, H hint, I intent overlay, R rules, G ping the hovered tile, + / − zoom.
- * While an overlay is open only Esc (close), D and R work.
+ * Keyboard controls (GDD §15.7): Space end turn, Enter confirm (the keyboard cursor's tile, else
+ * the selected card), Z undo, 1–8 select a card, Tab cycle Ready pieces, Esc cancel (with nothing
+ * to cancel: the pause menu), P Hero Power, C claim turn, D deck viewer, H hint, I intent overlay,
+ * R rules, G ping the hovered tile, + / − zoom, arrow keys move the keyboard cursor.
+ * While an overlay is open only Esc (close), D and R work. Nothing fires while typing in a field,
+ * and Enter / Space on a focused dialog button press that button instead.
  */
 import { useEffect, type RefObject } from 'react';
 import type { ControllerSnapshot, GameController } from '../../game';
@@ -13,6 +15,19 @@ import { useGameUi, ZOOM_STEP, type GameUi } from './uiStore';
 function isTextField(target: EventTarget | null): boolean {
   return target instanceof HTMLElement && (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName));
 }
+
+/** Enter / Space on a focused button inside a dialog or prompt belong to that button. */
+function isDialogButton(target: EventTarget | null, key: string): boolean {
+  if (key !== 'Enter' && key !== ' ') return false;
+  return target instanceof HTMLElement && target.closest('button, [role="radio"]') !== null && target.closest('[role="dialog"], .ww-card-prompt, .ww-haunt-prompt') !== null;
+}
+
+const ARROWS: Readonly<Record<string, readonly [number, number]>> = {
+  ArrowUp: [0, 1],
+  ArrowDown: [0, -1],
+  ArrowLeft: [-1, 0],
+  ArrowRight: [1, 0],
+};
 
 /** Tab cycles pieces only while focus is on the board (not on a button). */
 function boardHasFocus(root: HTMLElement | null): boolean {
@@ -74,9 +89,10 @@ function handleKey(event: KeyboardEvent, controller: GameController, ui: GameUi,
       controller.endTurn();
       return true;
     case 'Enter':
-      return controller.tryPlaySelected();
+      return controller.confirm();
     case 'Escape':
-      if (nothingSelected(snap)) ui.open('pause');
+      if (snap.selection.keyCursor && nothingSelected(snap)) controller.hoverTile(null);
+      else if (nothingSelected(snap)) ui.open('pause');
       else controller.cancel();
       return true;
     case 'z':
@@ -126,6 +142,11 @@ function handleKey(event: KeyboardEvent, controller: GameController, ui: GameUi,
     default:
       break;
   }
+  const arrow = ARROWS[key];
+  if (arrow) {
+    controller.moveCursor(arrow[0], arrow[1]);
+    return true;
+  }
   if (/^[1-8]$/.test(key) && snap.uiSeat !== null) {
     const card = snap.latest.players[snap.uiSeat]?.hand[Number(key) - 1];
     if (card) controller.selectCard(card.uid);
@@ -140,7 +161,7 @@ export function useGameKeys(rootRef: RefObject<HTMLElement | null>): void {
   const ui = useGameUi();
   useEffect(() => {
     const onKey = (event: KeyboardEvent): void => {
-      if (event.defaultPrevented || event.ctrlKey || event.metaKey || event.altKey || isTextField(event.target)) return;
+      if (event.defaultPrevented || event.ctrlKey || event.metaKey || event.altKey || isTextField(event.target) || isDialogButton(event.target, event.key)) return;
       if (services.overlays.get().settingsOpen || document.querySelector('.ww-modal-backdrop')) return;
       if (handleKey(event, controller, ui, services, rootRef.current)) event.preventDefault();
     };

@@ -194,7 +194,7 @@ describe('numbers match the GDD', () => {
       quickwick: ['rite', 0, 'common'], beeswax_seal: ['charm', 1, 'common'], saddle_the_wickhorse: ['summon', 2, 'common'],
       ordain_an_acolyte: ['summon', 2, 'common'], flare: ['rite', 2, 'common'], rally_the_captain: ['summon', 2, 'rare'],
       turnabout: ['rite', 1, 'rare'], kindle_hope: ['rite', 2, 'rare'], dawnbreak: ['rite', 4, 'mythic'],
-      shield_bash: ['rite', 1, 'common'], waxen_ward: ['rite', 1, 'common'], call_the_squire: ['summon', 2, 'common'],
+      shield_bash: ['rite', 1, 'common'], waxen_ward: ['rite', 1, 'common'], call_the_squire: ['summon', 1, 'common'] /* E5 balance pass; GDD §7.3 says 2 */,
       sunshield_charge: ['rite', 2, 'common'], muster_the_ram: ['summon', 3, 'rare'], oath_of_tallow: ['charm', 2, 'rare'],
       aegis_of_dawn: ['rite', 3, 'mythic'],
       loose_a_moth: ['summon', 1, 'common'], velvet_pull: ['rite', 1, 'common'], moth_dust: ['rite', 2, 'common'],
@@ -257,10 +257,12 @@ describe('numbers match the GDD', () => {
 
   it('bosses and their intents (§10)', () => {
     const boss = (id: string) => content.bosses.byId[id];
+    // E5 balance pass: base HP retuned so the three solo Boss Nights land near the same win rate
+    // (GDD §10 lists the original 14+10P / 18+12P / 16+11P).
     expect([boss('hush_hierophant').hp, boss('guttered_king').hp, boss('nocturna').hp]).toEqual([
-      { base: 14, perPlayer: 10 },
-      { base: 18, perPlayer: 12 },
-      { base: 16, perPlayer: 11 },
+      { base: 25, perPlayer: 10 },
+      { base: 48, perPlayer: 12 },
+      { base: 10, perPlayer: 11 },
     ]);
     expect(boss('hush_hierophant').phases.map((p) => p.intents)).toEqual([
       ['bell_drop', 'hushwave'],
@@ -278,6 +280,8 @@ describe('numbers match the GDD', () => {
       sceptre_sweep: ['beam2', 2], wax_spit: ['single', 1], wing_gust: ['beam2', 1], hunger: ['single', 3], dust_storm: ['square3', 1],
     });
     expect(content.bossIntents.byId.hushwave.reversible).toBe(false);
+    // E5 balance pass: devour_light heals 2 (GDD §10.5 says 3).
+    expect(content.bossIntents.byId.hunger.extra).toEqual({ op: 'custom', id: 'devour_light', args: { heal: 2 } });
   });
 
   it('difficulty and length presets (§14.2-14.3)', () => {

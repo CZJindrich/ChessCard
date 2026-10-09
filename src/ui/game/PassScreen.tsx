@@ -14,17 +14,18 @@ import { useGameSnapshot } from './context';
 /** The private moment the veil guards (a seat turn or a draft), or null when none needs one. */
 export function privateMoment(state: GameState, seat: number | null, localHumans: number, privacy = HOST_OPTION_DEFAULTS.hot_seat_privacy): string | null {
   if (!privacy || seat === null || state.config.mode !== 'last_flame' || localHumans < 2 || state.result) return null;
+  if (state.players[seat]?.eliminated) return null;
   if (state.phase === 'players') return `turn:${state.night}:${state.round}:${seat}`;
   if (state.phase === 'chandlery') return `draft:${state.night}:${seat}`;
   return null;
 }
 
-export function PassScreen(): ReactElement | null {
+export function PassScreen({ privacy = HOST_OPTION_DEFAULTS.hot_seat_privacy }: { privacy?: boolean }): ReactElement | null {
   const snap = useGameSnapshot();
   const presentation = usePresentation();
   const [revealed, setRevealed] = useState<string | null>(null);
   const localHumans = snap.controlledSeats.filter((seat) => snap.latest.players[seat]?.kind === 'human').length;
-  const moment = privateMoment(snap.latest, snap.uiSeat, localHumans);
+  const moment = snap.animating ? null : privateMoment(snap.latest, snap.uiSeat, localHumans, privacy);
   const veiled = moment !== null && moment !== revealed;
 
   // While veiled, keys do nothing but Enter (reveal): no End Turn or card picks behind the veil.

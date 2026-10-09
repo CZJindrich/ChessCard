@@ -6,13 +6,14 @@
  * shakes on heavy moments (§16.9).
  */
 import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactElement, type RefObject } from 'react';
-import { BoardArt, type BoardTileSpec } from '../../art';
+import { BoardArt, FRAME, GloamFog, GloamWarningBand, TILE, tileOrigin, type BoardTileSpec } from '../../art';
 import { posKey } from '../../engine';
 import type { GameState } from '../../engine/types';
+import { uiScaleCap } from '../app/presentationEffects';
 import { usePresentation } from '../app/services';
 import { centreOf, darknessAlpha, DarknessCanvas, lightSources, ParticleCanvas, useFxBus, useShake, type BoardPoint } from '../fx';
 import { BossMarks } from './BossMarks';
-import { MarksOver, MarksUnder } from './BoardMarks';
+import { IntentLayer, MarksOver, MarksUnder, PlumeLayer } from './BoardMarks';
 import { useGameSnapshot } from './context';
 import { FxLayer } from './FxLayer';
 import { fitBoard } from './geometry';
@@ -22,6 +23,7 @@ import { PiecesLayer } from './PiecesLayer';
 import { PingLayer } from './PingLayer';
 import { useGameUi, useGameUiState } from './uiStore';
 import { useBoardModel } from './useBoardModel';
+import { maxUiScale } from './uiScale';
 
 interface FloorSpec {
   cols: number;
@@ -54,6 +56,45 @@ interface FloorProps {
   seed: string;
 }
 
+/**
+ * The Gloam (§15.5 hazard glyphs, §16.5): still fog on closed tiles (the drift is the particle
+ * layer's ambient fog) and the hatched warning band, which pulses as a whole element (opacity,
+ * run by the compositor) instead of repainting every banded tile each frame (§16.10).
+ */
+const GloamLayer = memo(
+  function GloamLayer({ spec, tile, seed }: { spec: FloorSpec; tile: number; seed: string }): ReactElement | null {
+    if (spec.gloam.length === 0 && spec.gloamWarning.length === 0) return null;
+    const width = spec.cols * TILE;
+    const height = spec.rows * TILE;
+    const origin = (key: string): { x: number; y: number } => {
+      const [x, y] = key.split(',').map(Number);
+      return tileOrigin({ x, y }, spec.cols, spec.rows);
+    };
+    const style = { left: (FRAME * tile) / TILE, top: (FRAME * tile) / TILE };
+    return (
+      <>
+        {spec.gloam.length > 0 && (
+          <svg className="ww-art ww-gloam-layer" width={spec.cols * tile} height={spec.rows * tile} viewBox={`0 0 ${width} ${height}`} style={style} aria-hidden="true">
+            {spec.gloam.map((key) => {
+              const o = origin(key);
+              return <GloamFog key={key} x={o.x} y={o.y} seed={`${seed}${key}`} animated={false} />;
+            })}
+          </svg>
+        )}
+        {spec.gloamWarning.length > 0 && (
+          <svg className="ww-art ww-gloam-warning-layer" width={spec.cols * tile} height={spec.rows * tile} viewBox={`0 0 ${width} ${height}`} style={style} aria-hidden="true" data-testid="gloam-warning">
+            {spec.gloamWarning.map((key) => {
+              const o = origin(key);
+              return <GloamWarningBand key={key} x={o.x} y={o.y} animated={false} />;
+            })}
+          </svg>
+        )}
+      </>
+    );
+  },
+  (a, b) => a.spec.key === b.spec.key && a.tile === b.tile && a.seed === b.seed,
+);
+
 /** The floor only re-renders when the tiles change (it is the heaviest SVG on screen). */
 const Floor = memo(
   function Floor({ spec, tile, layer, animated, seed }: FloorProps): ReactElement {
@@ -63,8 +104,6 @@ const Floor = memo(
         cols={spec.cols}
         rows={spec.rows}
         tiles={spec.tiles}
-        gloam={spec.gloam}
-        gloamWarning={spec.gloamWarning}
         tileSize={tile}
         layer={layer}
         animated={animated}
@@ -93,6 +132,27 @@ function useElementSize(ref: RefObject<HTMLElement | null>): { w: number; h: num
   return size;
 }
 
+/** Changes of the cap smaller than this are ignored, so measuring and scaling never oscillate. */
+const CAP_HYSTERESIS = 0.02;
+
+/**
+ * Publish the largest UI scale that keeps this board's tiles at 36 px (§14.4); the app applies
+ * min(ui_scale, cap) to the root font. Cleared when the board leaves the screen.
+ */
+function useUiScaleCap(stage: { w: number; h: number }, cols: number, rows: number): void {
+  useEffect(() => {
+    if (stage.w <= 0 || stage.h <= 0 || typeof window === 'undefined') return;
+    const root = document.documentElement;
+    const style = getComputedStyle(root);
+    const rem = parseFloat(style.fontSize);
+    const scale = parseFloat(style.getPropertyValue('--ww-ui-scale')) || 1;
+    const cap = maxUiScale({ viewportW: window.innerWidth, viewportH: window.innerHeight, stageW: stage.w, stageH: stage.h, rem, scale, cols, rows });
+    const current = uiScaleCap.get();
+    if (current === null || Math.abs(current - cap) >= CAP_HYSTERESIS) uiScaleCap.set(Number.isFinite(cap) ? cap : null);
+  }, [stage.w, stage.h, cols, rows]);
+  useEffect(() => () => uiScaleCap.set(null), []);
+}
+
 /** Gloam tiles drift fog (§16.5). */
 function gloamPoints(spec: FloorSpec): BoardPoint[] {
   return spec.gloam.map((key) => {
@@ -111,9 +171,10 @@ export function Board(): ReactElement {
   const boardRef = useRef<HTMLDivElement | null>(null);
   const size = useElementSize(stageRef);
   const { state } = snap;
+  useUiScaleCap(size, state.board.w, state.board.h);
   const spec = useMemo(() => floorSpec(state), [state]);
   const stableSpec = useStableSpec(spec);
-  const metrics = fitBoard(state.board.w, state.board.h, size.w, size.h);
+  const metrics = useMemo(() => fitBoard(state.board.w, state.board.h, size.w, size.h), [state.board.w, state.board.h, size.w, size.h]);
   const model = useBoardModel(snap);
   const animated = !presentation.reduced_motion;
   const lights = useMemo(() => lightSources(state), [state]);
@@ -139,7 +200,10 @@ export function Board(): ReactElement {
             <DarknessCanvas className="ww-fx-darkness" cols={metrics.cols} rows={metrics.rows} tile={metrics.tile} lights={lights} alpha={darknessAlpha(state)} animated={animated} />
           </div>
           <Floor spec={stableSpec} tile={metrics.tile} layer="glyph" animated={animated} seed={seed} />
+          <GloamLayer spec={stableSpec} tile={metrics.tile} seed={seed} />
           <div className="ww-gameboard__tiles" style={tilesStyle}>
+            <PlumeLayer plumes={state.plumes} metrics={metrics} />
+            <IntentLayer snap={snap} model={model} metrics={metrics} />
             <MarksUnder snap={snap} model={model} metrics={metrics} />
             <PiecesLayer snap={snap} model={model} metrics={metrics} />
             <MarksOver snap={snap} model={model} metrics={metrics} />

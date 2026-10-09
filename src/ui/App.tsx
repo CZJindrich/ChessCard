@@ -2,24 +2,38 @@
  * The app shell: services in context, the screen router, global overlays (settings modal,
  * toasts), presentation settings on <html>, the audio unlock on first interaction, menu
  * music, and Esc as "Back" on menu screens.
+ *
+ * The heavy screens are code-split (app/lazyScreens.ts): a themed veil shows while one loads,
+ * and a screen that fails to load offers Reload or the Main Menu instead of a blank page.
  */
-import { useEffect, useState, type ReactElement } from 'react';
+import { Suspense, useEffect, useState, type ReactElement } from 'react';
 import { createAppServices, ServicesContext, usePresentation, useServices, type AppServices } from './app/services';
 import { currentRoute, isMenuScreen, type Route } from './app/navigation';
-import { applyPresentation } from './app/presentationEffects';
+import {
+  CodexScreenChunk,
+  GameScreenChunk,
+  HowToPlayScreenChunk,
+  LobbyScreenChunk,
+  preloadNextScreens,
+  schedulePreload,
+  SetupScreenChunk,
+} from './app/lazyScreens';
+import { applyPresentation, uiScaleCap } from './app/presentationEffects';
 import { useStore } from './app/store';
+import { LoadingVeil } from './components/LoadingVeil';
 import { Modal } from './components/Modal';
+import { ScreenBoundary } from './components/ScreenBoundary';
 import { ToastViewport } from './components/ToastViewport';
-import { GameScreen } from './game/GameScreen';
-import { CodexScreen } from './screens/codex/CodexScreen';
 import { HeroPickerScreen } from './screens/HeroPickerScreen';
-import { HowToPlayScreen } from './screens/howto/HowToPlayScreen';
-import { LobbyScreen } from './screens/lobby/LobbyScreen';
 import { SettingsPanel } from './screens/settings/SettingsPanel';
 import { SettingsScreen } from './screens/settings/SettingsScreen';
-import { SetupScreen } from './screens/setup/SetupScreen';
 import { TitleScreen } from './screens/TitleScreen';
 
+const { Screen: GameScreen } = GameScreenChunk;
+const { Screen: SetupScreen } = SetupScreenChunk;
+const { Screen: LobbyScreen } = LobbyScreenChunk;
+const { Screen: HowToPlayScreen } = HowToPlayScreenChunk;
+const { Screen: CodexScreen } = CodexScreenChunk;
 
 function ScreenRouter({ route }: { route: Route }): ReactElement {
   switch (route.screen) {
@@ -68,14 +82,21 @@ function AppShell(): ReactElement {
   const nav = useStore(services.nav);
   const overlays = useStore(services.overlays);
   const presentation = usePresentation();
+  const scaleCap = useStore(uiScaleCap);
   const route = currentRoute(nav);
   const depth = nav.stack.length;
 
   useAudioUnlock(services);
 
+  useEffect(() => schedulePreload(), []);
+
   useEffect(() => {
-    applyPresentation(document.documentElement, presentation);
-  }, [presentation]);
+    preloadNextScreens(route.screen);
+  }, [route.screen]);
+
+  useEffect(() => {
+    applyPresentation(document.documentElement, presentation, scaleCap);
+  }, [presentation, scaleCap]);
 
   useEffect(() => {
     if (isMenuScreen(route.screen)) services.audio.setMusic('menu');
@@ -97,7 +118,11 @@ function AppShell(): ReactElement {
 
   return (
     <div className="ww-app">
-      <ScreenRouter key={`${depth}:${route.screen}`} route={route} />
+      <ScreenBoundary key={`${depth}:${route.screen}`} onMainMenu={() => services.nav.reset()}>
+        <Suspense fallback={<LoadingVeil />}>
+          <ScreenRouter route={route} />
+        </Suspense>
+      </ScreenBoundary>
       <Modal open={overlays.settingsOpen} title="Settings" onClose={closeSettings} size="lg">
         <SettingsPanel showPreview={false} />
       </Modal>

@@ -4,9 +4,9 @@
  * (§16.9): hops per tile for steps and slides, arcs for leaps and flights, slides for pushes
  * and Takes, fades for teleports, a lunge for melee strikes and a jolt when hit.
  */
-import { useEffect, useMemo, useRef, type CSSProperties, type ReactElement } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, type CSSProperties, type ReactElement } from 'react';
 import { BossArt, bossArtPlacement, PieceArt } from '../../art';
-import type { GameEvent, Piece, Pos } from '../../engine/types';
+import type { GameEvent, GameState, Piece, Pos } from '../../engine/types';
 import { readyPieces, type ControllerSnapshot, type PlaybackStep } from '../../game';
 import { usePresentation } from '../app/services';
 import { useController } from './context';
@@ -218,6 +218,65 @@ function bossSeeThrough(boss: Piece, hover: Pos | null, model: BoardModel): bool
   return highlightedTiles(model).some((t) => underBossArt(boss, t));
 }
 
+interface PieceSlotProps {
+  piece: Piece;
+  state: GameState;
+  metrics: BoardMetrics;
+  ready: boolean;
+  selected: boolean;
+  rising: boolean;
+  dimmed: boolean;
+  /** Quantised glance toward the hovered tile (−1, 0 or 1 per axis). */
+  lookX: number;
+  lookY: number;
+  animated: boolean;
+  register: (id: string, node: HTMLDivElement | null) => void;
+}
+
+/** One piece; memoised so hovering a tile re-renders only the pieces whose glance turns. */
+const PieceSlot = memo(function PieceSlot({ piece, state, metrics, ready, selected, rising, dimmed, lookX, lookY, animated, register }: PieceSlotProps): ReactElement {
+  const xy = tileXY(piece.pos, metrics);
+  const look = lookX === 0 && lookY === 0 ? null : { dx: lookX, dy: lookY };
+  const classes = ['ww-piece-slot', selected && 'ww-piece-slot--selected', rising && 'ww-piece-slot--enter', dimmed && 'ww-piece-slot--dim', piece.side === 'snuff' && 'ww-piece-slot--snuff'].filter(Boolean).join(' ');
+  return (
+    <div
+      ref={(node) => register(piece.id, node)}
+      className={classes}
+      style={{ transform: `translate(${xy.x}px, ${xy.y}px)`, width: metrics.tile, height: metrics.tile, zIndex: (state.board.h - piece.pos.y) * 10 }}
+      data-piece-id={piece.id}
+      data-def={piece.defId}
+    >
+      <div className="ww-piece-slot__lift">
+        <PieceArt {...pieceArtProps(state, piece, metrics.tile, ready)} lookAt={look} animated={animated} />
+      </div>
+    </div>
+  );
+}, samePieceSlot);
+
+/** The props that change a piece's drawing (the state object changes with every event). */
+function samePieceSlot(a: PieceSlotProps, b: PieceSlotProps): boolean {
+  return (
+    a.piece === b.piece &&
+    a.metrics === b.metrics &&
+    a.ready === b.ready &&
+    a.selected === b.selected &&
+    a.rising === b.rising &&
+    a.dimmed === b.dimmed &&
+    a.lookX === b.lookX &&
+    a.lookY === b.lookY &&
+    a.animated === b.animated &&
+    a.register === b.register &&
+    a.state.phase === b.state.phase &&
+    a.state.activeSeat === b.state.activeSeat &&
+    a.state.board.h === b.state.board.h &&
+    houseOf(a.state, a.piece) === houseOf(b.state, b.piece)
+  );
+}
+
+function houseOf(state: GameState, piece: Piece): string | null {
+  return piece.owner !== null ? (state.players[piece.owner]?.house ?? null) : null;
+}
+
 export function PiecesLayer({ snap, model, metrics }: LayerProps): ReactElement {
   const controller = useController();
   const presentation = usePresentation();
@@ -247,6 +306,11 @@ export function PiecesLayer({ snap, model, metrics }: LayerProps): ReactElement 
     [controller],
   );
 
+  const register = useCallback((id: string, node: HTMLDivElement | null): void => {
+    if (node) nodes.current.set(id, node);
+    else nodes.current.delete(id);
+  }, []);
+
   const { state, latest, uiSeat, selection } = snap;
   const ready = useMemo(() => new Set(!snap.animating && uiSeat !== null && latest.phase === 'players' ? readyPieces(latest, uiSeat).map((p) => p.id) : []), [snap.animating, uiSeat, latest]);
   const pieces = Object.values(state.pieces).sort((a, b) => sortKey(a) - sortKey(b));
@@ -263,41 +327,40 @@ export function PiecesLayer({ snap, model, metrics }: LayerProps): ReactElement 
   const hover = selection.hover;
   const targetIds = new Set(model.targeting?.info.targets.flatMap((t) => (t.choice.kind === 'piece' ? [t.choice.pieceId] : [])) ?? []);
   const dimOthers = model.targeting !== null && model.targeting.info.steps > 0;
+  const animated = !presentation.reduced_motion;
 
   return (
     <div className="ww-pieces" aria-label="Pieces">
       {pieces.map((piece) => {
-        const rising = entering.current.has(piece.id);
-        const ref = (node: HTMLDivElement | null): void => {
-          if (node) nodes.current.set(piece.id, node);
-          else nodes.current.delete(piece.id);
-        };
         if (piece.kind === 'boss') {
           const bossState = state.boss;
           return (
-            <div key={piece.id} ref={ref} className={`ww-boss-slot${bossSeeThrough(piece, hover, model) ? ' ww-boss-slot--see-through' : ''}`} style={bossStyle(piece, metrics, state.board.h)} data-piece-id={piece.id}>
-              <BossArt bossId={piece.defId} phase={bossState?.phase ?? 1} crowns={bossState?.crowns ?? 0} hungry={bossState?.hungry ?? false} size={metrics.tile * 3} animated={!presentation.reduced_motion} seed={piece.id} />
+            <div
+              key={piece.id}
+              ref={(node) => register(piece.id, node)}
+              className={`ww-boss-slot${bossSeeThrough(piece, hover, model) ? ' ww-boss-slot--see-through' : ''}`}
+              style={bossStyle(piece, metrics, state.board.h)}
+              data-piece-id={piece.id}
+            >
+              <BossArt bossId={piece.defId} phase={bossState?.phase ?? 1} crowns={bossState?.crowns ?? 0} hungry={bossState?.hungry ?? false} size={metrics.tile * 3} animated={animated} seed={piece.id} />
             </div>
           );
         }
-        const xy = tileXY(piece.pos, metrics);
-        const look = hover ? { dx: hover.x - piece.pos.x, dy: piece.pos.y - hover.y } : null;
-        const selected = selection.pieceId === piece.id;
-        const dimmed = dimOthers && !targetIds.has(piece.id);
-        const classes = ['ww-piece-slot', selected && 'ww-piece-slot--selected', rising && 'ww-piece-slot--enter', dimmed && 'ww-piece-slot--dim', piece.side === 'snuff' && 'ww-piece-slot--snuff'].filter(Boolean).join(' ');
         return (
-          <div
+          <PieceSlot
             key={piece.id}
-            ref={ref}
-            className={classes}
-            style={{ transform: `translate(${xy.x}px, ${xy.y}px)`, width: metrics.tile, height: metrics.tile, zIndex: (state.board.h - piece.pos.y) * 10 }}
-            data-piece-id={piece.id}
-            data-def={piece.defId}
-          >
-            <div className="ww-piece-slot__lift">
-              <PieceArt {...pieceArtProps(state, piece, metrics.tile, ready.has(piece.id))} lookAt={look} animated={!presentation.reduced_motion} />
-            </div>
-          </div>
+            piece={piece}
+            state={state}
+            metrics={metrics}
+            ready={ready.has(piece.id)}
+            selected={selection.pieceId === piece.id}
+            rising={entering.current.has(piece.id)}
+            dimmed={dimOthers && !targetIds.has(piece.id)}
+            lookX={hover ? Math.sign(hover.x - piece.pos.x) : 0}
+            lookY={hover ? Math.sign(piece.pos.y - hover.y) : 0}
+            animated={animated}
+            register={register}
+          />
         );
       })}
     </div>

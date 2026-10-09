@@ -240,7 +240,10 @@ describe('Retry and Last Flame data', () => {
     const s = bossNight({ boss: 'nocturna', seats: 2, mode: 'last_flame', overrides: { boss_hp_multiplier: 1 } });
     const state = s.boss;
     if (!state) throw new Error('no boss');
-    expect(state.maxHp).toBe(38);
+    const { base, perPlayer } = getContent().bosses.byId.nocturna.hp;
+    expect(state.maxHp).toBe(base + perPlayer * 2);
+    // A 38-HP Nocturna (the original 16 + 11 × 2) keeps the tenths below easy to follow.
+    state.maxHp = 38;
     state.damageBySeat = [7.6, 3.7];
     expect(bossGlory(s, 0)).toEqual({ damage: 7.6, damageGlory: 2, killingBlow: 0 });
     expect(bossGlory(s, 1).damageGlory).toBe(0);

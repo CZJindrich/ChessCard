@@ -12,7 +12,8 @@ import { runCharmTrigger, runTraitTrigger } from './effects';
 import { footprint, pullPath, pushPath, sqName } from './geometry';
 import type { DisplacementPath } from './geometry';
 import { addLog, pieceAtText, pieceName } from './log';
-import { gloryForSnuffKill, isTruceActive, onHeroFellLastFlame } from './modes/lastFlame';
+import { settleFallenHero } from './modes/falls';
+import { creditTick, gloryForRivalUnit, gloryForSnuffKill, isTruceActive, onHeroFellLastFlame } from './modes/lastFlame';
 import { atomicEffect, changeDread } from './modes/vigil';
 import { boardQuery, emit, isOver, isRivalOf, removePiece, tileAt } from './state';
 import type { Ctx } from './state';
@@ -113,8 +114,9 @@ function recordDamage(ctx: Ctx, target: Piece, amount: number, src: DamageSource
 
 /**
  * One damage instance (§6.3, §6.5). Ward cancels the whole instance and breaks. Smoldering Wicks
- * take only Gloam damage; bosses never take Snuff-attack damage. A Candle hit adds Dread.
- * The instance and what it sets off (death, Dread, Riposte) are one atomic effect (§13.1.5).
+ * take no damage (the Gloam eliminates them instead, modes/gloam); bosses never take Snuff-attack
+ * damage. A Candle hit adds Dread. The instance and what it sets off (death, Dread, Riposte, a
+ * Last Flame elimination) are one atomic effect (§13.1.5).
  */
 export function dealDamage(ctx: Ctx, target: Piece, amount: number, src: DamageSource): DamageOutcome {
   return atomicEffect(ctx, () => damageInstance(ctx, target, amount, src));
@@ -123,7 +125,7 @@ export function dealDamage(ctx: Ctx, target: Piece, amount: number, src: DamageS
 function damageInstance(ctx: Ctx, target: Piece, amount: number, src: DamageSource): DamageOutcome {
   const { s } = ctx;
   if (isOver(s) || amount <= 0 || s.pieces[target.id] !== target) return NO_DAMAGE;
-  if (target.smoldering && src.cause !== 'gloam') return NO_DAMAGE;
+  if (target.smoldering) return NO_DAMAGE;
   if (target.kind === 'boss' && src.sourceKind === 'snuff_attack') return NO_DAMAGE;
   if (target.ward && !src.ignoreWard) {
     target.ward = false;
@@ -165,6 +167,8 @@ function damageInstance(ctx: Ctx, target: Piece, amount: number, src: DamageSour
   if (lethal) killPiece(ctx, target, { cause: src.cause, seat: src.seat, sourceId: src.sourceId });
   // A felled hero stays on the board as a Wick and keeps its Charm: Riposte answers the fatal hit too.
   if (!isOver(s)) runCharmTrigger(ctx, target, 'damaged', { attackerId: src.sourceId, sourceKind: src.sourceKind });
+  // Last Flame: a hero that must be eliminated leaves only once its fatal hit has resolved.
+  if (lethal && target.kind === 'hero') settleFallenHero(ctx, target, src.cause, src.seat);
   return { dealt: amount, blocked: false, killed: lethal };
 }
 
@@ -199,7 +203,7 @@ function emitDied(ctx: Ctx, p: Piece, info: KillInfo): void {
   });
 }
 
-function smolderHero(ctx: Ctx, hero: Piece): void {
+function smolderHero(ctx: Ctx, hero: Piece, info: KillInfo): void {
   hero.hp = 0;
   hero.smoldering = true;
   hero.ward = false;
@@ -216,9 +220,10 @@ function smolderHero(ctx: Ctx, hero: Piece): void {
   addLog(ctx, `${pieceName(ctx.reg, hero)} falls and smolders at ${sqName(hero.pos)}.`);
   if (ctx.s.config.mode === 'vigil') {
     changeDread(ctx, ctx.reg.rules.dread.heroFalls, 'hero_fell', `${pieceName(ctx.reg, hero)} fell at ${sqName(hero.pos)}.`);
-  } else {
-    onHeroFellLastFlame(ctx, hero);
+    return;
   }
+  if (info.seat !== null && info.seat !== hero.owner) creditKill(ctx, info);
+  onHeroFellLastFlame(ctx, hero, info.seat);
 }
 
 function snuffCandle(ctx: Ctx, candle: Piece, info: KillInfo): void {
@@ -230,12 +235,15 @@ function snuffCandle(ctx: Ctx, candle: Piece, info: KillInfo): void {
   changeDread(ctx, ctx.reg.rules.dread.candleSnuffed, 'candle_snuffed', `The ${sqName(candle.pos)} Vigil Candle was snuffed.`);
 }
 
+/** Removals that are not deaths in play: no death traits (Pop) fire. */
+const QUIET_REMOVALS: ReadonlySet<DeathCause> = new Set<DeathCause>(['melt', 'dawn', 'gloam']);
+
 function meltUnit(ctx: Ctx, unit: Piece, info: KillInfo): void {
   returnCharm(ctx, unit);
   removePiece(ctx.s, unit.id);
   emitDied(ctx, unit, info);
   addLog(ctx, `${pieceAtText(ctx.reg, unit)} melts.`);
-  if (info.cause !== 'melt' && info.cause !== 'dawn') runTraitTrigger(ctx, unit, 'death');
+  if (!QUIET_REMOVALS.has(info.cause)) runTraitTrigger(ctx, unit, 'death');
 }
 
 function burstSnuff(ctx: Ctx, enemy: Piece, info: KillInfo): void {
@@ -254,13 +262,16 @@ export function killPiece(ctx: Ctx, p: Piece, info: KillInfo): void {
   if (ctx.s.pieces[p.id] !== p) return;
   switch (p.kind) {
     case 'hero':
-      smolderHero(ctx, p);
+      smolderHero(ctx, p, info);
       return;
     case 'candle':
       snuffCandle(ctx, p, info);
       return;
     case 'unit':
-      if (info.seat !== null && p.owner !== info.seat) creditKill(ctx, info);
+      if (info.seat !== null && p.owner !== info.seat) {
+        creditKill(ctx, info);
+        gloryForRivalUnit(ctx, p, info.seat);
+      }
       meltUnit(ctx, p, info);
       return;
     case 'enemy':
@@ -274,9 +285,32 @@ export function killPiece(ctx: Ctx, p: Piece, info: KillInfo): void {
   }
 }
 
-/** Dismiss a unit without credit (free action `melt`, carry-over at Dawn). */
-export function dismissUnit(ctx: Ctx, unit: Piece, cause: 'melt' | 'dawn'): void {
+/** Dismiss a unit without credit (free action `melt`, carry-over at Dawn, elimination, the Gloam). */
+export function dismissUnit(ctx: Ctx, unit: Piece, cause: 'melt' | 'dawn' | 'gloam'): void {
   meltUnit(ctx, unit, { cause, seat: null, sourceId: null });
+}
+
+/**
+ * Remove a unit or Snuff without credit, Glory or death traits (the Gloam swallowing Lanterns,
+ * Wick Mortars and Smokestacks, §5.4). Its locked intents end.
+ */
+export function vanishPiece(ctx: Ctx, p: Piece, cause: DeathCause): void {
+  if (ctx.s.pieces[p.id] !== p) return;
+  if (p.kind === 'unit') {
+    meltUnit(ctx, p, { cause, seat: null, sourceId: null });
+    return;
+  }
+  const cancelled = ctx.s.intents.filter((i) => i.attackerId === p.id);
+  removePiece(ctx.s, p.id);
+  for (const intent of cancelled) emit(ctx, { type: 'intent_cancelled', intentId: intent.id, reason: 'attacker_died' });
+  emitDied(ctx, p, { cause, seat: null, sourceId: null });
+}
+
+/** Record a player displacement (push, pull, swap) for kill credit (§6.3); Last Flame also times it. */
+export function markDisplaced(ctx: Ctx, p: Piece, seat: number): void {
+  p.lastDisplacedBy = seat;
+  const at = creditTick(ctx.s);
+  if (at > 0) p.lastDisplacedAt = at;
 }
 
 // =============================================================================================
@@ -316,10 +350,14 @@ export function giveWard(ctx: Ctx, p: Piece): void {
   emit(ctx, { type: 'status_changed', pieceId: p.id, status: 'ward', active: true, value: 1 });
 }
 
-/** Burn: 1 damage at each of the next 2 Tallies; reapplying resets the count (§6.5). */
-export function applyBurn(ctx: Ctx, p: Piece): void {
+/**
+ * Burn: 1 damage at each of the next 2 Tallies; reapplying resets the count (§6.5). `seat` is the
+ * player whose effect applied it (a Snuff attack: null), credited if the Burn kills.
+ */
+export function applyBurn(ctx: Ctx, p: Piece, seat: number | null = null): void {
   if (p.smoldering || p.kind === 'candle' || isImmune(ctx.reg, p, 'burn')) return;
   p.burn = ctx.reg.statuses.byId.burn?.tallies ?? 2;
+  p.burnSeat = seat;
   emit(ctx, { type: 'status_changed', pieceId: p.id, status: 'burn', active: true, value: p.burn });
 }
 
@@ -404,7 +442,7 @@ function finishDisplacement(ctx: Ctx, p: Piece, from: Pos, result: DisplacementP
   const path = result.path;
   const bumpAt = result.bump && !truceSparesBump(ctx, p, result.bump, src) ? result.bump : null;
   emit(ctx, { type: 'piece_moved', pieceId: p.id, from, to: p.pos, kind, path, ...(bumpAt ? { bump: bumpAt } : {}) });
-  if (src.displacer !== null) p.lastDisplacedBy = src.displacer;
+  if (src.displacer !== null) markDisplaced(ctx, p, src.displacer);
   if (bumpAt) {
     atomicEffect(ctx, () => {
       bump(ctx, p, src);
@@ -446,8 +484,8 @@ export function swapPieces(ctx: Ctx, a: Piece, b: Piece, src: DisplaceSource, ig
   emit(ctx, { type: 'piece_moved', pieceId: a.id, from: posA, to: posB, kind: 'swap' });
   emit(ctx, { type: 'piece_moved', pieceId: b.id, from: posB, to: posA, kind: 'swap' });
   if (src.displacer !== null) {
-    a.lastDisplacedBy = src.displacer;
-    b.lastDisplacedBy = src.displacer;
+    markDisplaced(ctx, a, src.displacer);
+    markDisplaced(ctx, b, src.displacer);
   }
   afterMoveEnd(ctx, a, src.credit);
   afterMoveEnd(ctx, b, src.credit);

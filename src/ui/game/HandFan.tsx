@@ -3,7 +3,7 @@
  * face; click selects it (then click a glowing tile), or drag it onto a target (§15.7). A card
  * that can't be played is greyed with its reason and shakes when clicked (§15.6).
  */
-import { useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent, type ReactElement } from 'react';
+import { memo, useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent, type ReactElement } from 'react';
 import { CardFace, CardMini, type CardArtData } from '../../art';
 import { cardTargets } from '../../engine';
 import type { CardInstance, CardTargetInfo, ContentRegistry, GameState } from '../../engine/types';
@@ -11,18 +11,25 @@ import { reasonLine } from '../../game';
 import { usePresentation } from '../app/services';
 import { cardArtData } from '../model/describe';
 import { useBoardLocator } from './boardLocator';
-import { useController, useGameSnapshot, useRegistry } from './context';
+import { useController, useGameSelector, useRegistry } from './context';
 import { houseColorOf } from './pieceView';
 
 const DRAG_THRESHOLD = 8;
 
+/** The root font size in px, following window resizes and `ui_scale` (a style change on <html>). */
 function useRemPx(): number {
   const [rem, setRem] = useState(16);
   useEffect(() => {
-    const read = (): void => setRem(parseFloat(getComputedStyle(document.documentElement).fontSize) || 16);
+    const root = document.documentElement;
+    const read = (): void => setRem(parseFloat(getComputedStyle(root).fontSize) || 16);
     read();
     window.addEventListener('resize', read);
-    return () => window.removeEventListener('resize', read);
+    const observer = typeof MutationObserver === 'undefined' ? null : new MutationObserver(read);
+    observer?.observe(root, { attributes: true, attributeFilter: ['style'] });
+    return () => {
+      window.removeEventListener('resize', read);
+      observer?.disconnect();
+    };
   }, []);
   return rem;
 }
@@ -61,7 +68,7 @@ function useCardInfos(state: GameState, seat: number | null, interactive: boolea
 }
 
 export function HandFan({ seat }: { seat: number | null }): ReactElement {
-  const snap = useGameSnapshot();
+  const snap = useGameSelector((s) => ({ state: s.state, latest: s.latest, uiSeat: s.uiSeat, selectedUid: s.selection.card?.uid ?? null, notice: s.notice }));
   const controller = useController();
   const registry = useRegistry();
   const presentation = usePresentation();
@@ -72,11 +79,14 @@ export function HandFan({ seat }: { seat: number | null }): ReactElement {
   const suppressClick = useRef(false);
   const interactive = seat !== null && snap.uiSeat === seat && snap.latest.phase === 'players';
   const infos = useCardInfos(snap.latest, seat, interactive);
-  const hand = seat !== null ? (snap.state.players[seat]?.hand ?? []) : [];
+  const hand = useMemo(() => (seat !== null ? (snap.state.players[seat]?.hand ?? []) : []), [snap.state, seat]);
+  // One art record per card, kept while the hand and its playability are unchanged (memoised minis).
+  const arts = useMemo(() => new Map(hand.map((card) => [card.uid, artFor(registry, card, infos.get(card.uid))] as const)), [hand, infos, registry]);
   const n = hand.length;
-  const cardW = Math.round(rem * 5.6);
+  // Last Flame's bottom bar is 96 px tall (§15.4), so its hand fans smaller cards.
+  const cardW = Math.round(rem * (snap.state.config.mode === 'last_flame' ? 4.4 : 5.6));
   const houseColor = houseColorOf(snap.state, seat);
-  const selectedUid = snap.selection.card?.uid ?? null;
+  const selectedUid = snap.selectedUid;
   const notice = snap.notice;
 
   const onPointerDown = (e: PointerEvent<HTMLButtonElement>, uid: string): void => {
@@ -118,7 +128,7 @@ export function HandFan({ seat }: { seat: number | null }): ReactElement {
   return (
     <div className={`ww-hand${interactive ? '' : ' ww-hand--idle'}`} style={{ '--ww-hand-n': n, '--ww-card-w': `${cardW}px` } as CSSProperties} aria-label="Your hand">
       {hand.map((card, i) => {
-        const art = artFor(registry, card, infos.get(card.uid));
+        const art = arts.get(card.uid) ?? null;
         if (!art) return null;
         const selected = selectedUid === card.uid;
         const shaking = notice?.anchor.kind === 'card' && notice.anchor.uid === card.uid;
@@ -150,7 +160,7 @@ export function HandFan({ seat }: { seat: number | null }): ReactElement {
             }}
           >
             <span className={`ww-hand-card__body${shaking ? ' ww-shake' : ''}`}>
-              <CardMini card={art} width={cardW} houseColor={houseColor} animated={!presentation.reduced_motion && selected} />
+              <HandMini card={art} width={cardW} houseColor={houseColor} animated={!presentation.reduced_motion && selected} />
               {interactive && i < 8 && <span className="ww-hand-card__key ww-num">{i + 1}</span>}
             </span>
           </button>
@@ -165,6 +175,11 @@ export function HandFan({ seat }: { seat: number | null }): ReactElement {
     </div>
   );
 }
+
+/** A hand card's mini face, re-drawn only when its art record changes (not on hover elsewhere). */
+const HandMini = memo(function HandMini({ card, width, houseColor, animated }: { card: CardArtData; width: number; houseColor: string | undefined; animated: boolean }): ReactElement {
+  return <CardMini card={card} width={width} houseColor={houseColor} animated={animated} />;
+});
 
 function CardPreview({ hand, uid, infos, houseColor, rem, index }: { hand: CardInstance[]; uid: string; infos: Map<string, CardTargetInfo>; houseColor: string | undefined; rem: number; index: number }): ReactElement | null {
   const registry = useRegistry();

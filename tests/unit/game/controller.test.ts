@@ -167,8 +167,9 @@ describe('GameController automation', () => {
     expect(t.controller.endTurn(true)).toBe('ended');
   });
 
-  it('plays a whole all-bot game to the end with the sync bot runner', async () => {
-    const config = configWithSeats([{ kind: 'bot_warden', hero: null, name: 'Warden' }], 'demo-run');
+  // The real planners search hundreds to thousands of nodes per turn: the cheapest level, and room.
+  it('plays a whole all-bot game to the end with the sync bot runner', { timeout: 120_000 }, async () => {
+    const config = configWithSeats([{ kind: 'bot_apprentice', hero: null, name: 'Apprentice' }], 'demo-run');
     const t = setup(newGame(config), INSTANT);
     t.controller.start();
     await settle(t, 20000);

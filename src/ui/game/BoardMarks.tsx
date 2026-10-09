@@ -7,13 +7,13 @@
  *   gold move dots and strike rings with their previews, card previews, End Turn preview tiles
  *   and the hint. Looping motion is frozen by the art's `.ww-reduced-motion` switch.
  */
-import type { ReactElement, ReactNode } from 'react';
+import { memo, type ReactElement, type ReactNode } from 'react';
 import { CHIMNEY_PAIR_COLORS, DamageBadge, IntentTile, MoveDot, PALETTE, PieceGraphic, PushArrow, SkullBadge, SmokePlumeToken, StrikeRing, type Dir } from '../../art';
 import { posKey } from '../../engine';
 import type { Action, EffectPreview, GameState, Intent, Pos } from '../../engine/types';
 import type { ControllerSnapshot, PieceHighlights } from '../../game';
 import { houseColorOf } from './pieceView';
-import { TILE, tileCentreUnits, tileUnits, type BoardMetrics } from './geometry';
+import { TILE, tileCentreUnits, tileUnits, tileXY, type BoardMetrics } from './geometry';
 import type { BoardModel, TargetingModel } from './useBoardModel';
 
 interface LayerProps {
@@ -39,17 +39,34 @@ function at(pos: Pos, rows: number): string {
 // Under the pieces
 // =============================================================================================
 
-function Plumes({ state }: { state: GameState }): ReactElement {
+/**
+ * Smoke Plumes (§15.5): each in its own small SVG on its own layer, so their looping smoke
+ * repaints a tile, not the whole board (§16.10).
+ */
+export const PlumeLayer = memo(function PlumeLayer({ plumes, metrics }: { plumes: GameState['plumes']; metrics: BoardMetrics }): ReactElement {
   return (
-    <g className="ww-marks__plumes">
-      {state.plumes.map((m) => (
-        <g key={m.id} transform={at(m.pos, state.board.h)} className="ww-plume-mark">
-          <SmokePlumeToken enemyId={m.enemyId} seed={m.id} />
-        </g>
-      ))}
-    </g>
+    <div className="ww-plumes" aria-hidden="true">
+      {plumes.map((m) => {
+        const o = tileXY(m.pos, metrics);
+        return (
+          <svg
+            key={m.id}
+            className="ww-art ww-plume-slot"
+            width={metrics.tile}
+            height={metrics.tile}
+            viewBox={`0 0 ${TILE} ${TILE}`}
+            style={{ transform: `translate(${o.x}px, ${o.y}px)` }}
+            data-plume={m.id}
+          >
+            <g className="ww-plume-mark">
+              <SmokePlumeToken enemyId={m.enemyId} seed={m.id} />
+            </g>
+          </svg>
+        );
+      })}
+    </div>
   );
-}
+});
 
 function TileFill({ pos, rows, color, opacity, className }: { pos: Pos; rows: number; color: string; opacity: number; className?: string }): ReactElement {
   const o = tileUnits(pos, rows);
@@ -116,6 +133,26 @@ function footprintKeys(state: GameState, pos: Pos, pieceId: string | null): stri
   return out;
 }
 
+/** Haunting: violet glows on the legal tiles and a ghost Sootling Plume on the hovered one. */
+function HauntFloor({ tiles, rows, hover }: { tiles: readonly Pos[]; rows: number; hover: Pos | null }): ReactElement {
+  const hovered = hover ? tiles.find((t) => t.x === hover.x && t.y === hover.y) : undefined;
+  return (
+    <g className="ww-marks__haunt">
+      {tiles.map((p) => (
+        <g key={`ht${posKey(p)}`} className="ww-target-glow">
+          <TileFill pos={p} rows={rows} color={PALETTE.plumeViolet} opacity={0.2} />
+          <TileOutline pos={p} rows={rows} color={PALETTE.plumeViolet} width={2} dashed />
+        </g>
+      ))}
+      {hovered && (
+        <g transform={at(hovered, rows)} opacity={0.75} className="ww-haunt-ghost">
+          <SmokePlumeToken enemyId="sootling" seed="haunt-ghost" />
+        </g>
+      )}
+    </g>
+  );
+}
+
 function MoveRange({ keys, rows }: { keys: Set<string>; rows: number }): ReactElement {
   return (
     <g className="ww-marks__range">
@@ -135,8 +172,6 @@ export function MarksUnder({ snap, model, metrics }: LayerProps): ReactElement {
   const zone = latest.phase === 'night_setup' && uiSeat !== null ? model.deploy : [];
   return (
     <Svg metrics={metrics} className="ww-marks--under">
-      <Plumes state={state} />
-      <IntentFloor state={state} model={model} show={selection.showIntents} />
       {zone.map((p) => (
         <g key={`dz${posKey(p)}`} className="ww-deploy-tile">
           <TileFill pos={p} rows={rows} color={PALETTE.candleGold} opacity={0.16} />
@@ -149,6 +184,7 @@ export function MarksUnder({ snap, model, metrics }: LayerProps): ReactElement {
         </g>
       )}
       {model.targeting && <TargetFloor state={latest} targeting={model.targeting} />}
+      {model.haunt.length > 0 && <HauntFloor tiles={model.haunt} rows={rows} hover={selection.hover} />}
       {model.inspectRange.size > 0 && <MoveRange keys={model.inspectRange} rows={rows} />}
       {selection.hover && !snap.animating && <TileOutline pos={selection.hover} rows={rows} color={PALETTE.tallowText} width={1.4} className="ww-hover-tile" />}
     </Svg>
@@ -227,14 +263,17 @@ interface IntentLayerProps {
 
 /**
  * Under the pieces: the full intent tile (red fill, hatching, ✕, damage, queue, push arrow), so a
- * piece standing in the red stays readable on top of it.
+ * piece standing in the red stays readable on top of it. The layer is its own SVG and pulses as
+ * a whole (opacity on the element, which the compositor animates without repainting, §16.10).
  */
-function IntentFloor({ state, model, show }: IntentLayerProps): ReactElement | null {
+export function IntentLayer({ snap, model, metrics }: LayerProps): ReactElement | null {
+  const { state, selection } = snap;
+  const show = selection.showIntents;
   if (!show && model.focusIntents.size === 0) return null;
   const first = intentFirstTiles(model);
   const rows = state.board.h;
   return (
-    <g className="ww-marks__intents">
+    <Svg metrics={metrics} className="ww-marks--intents">
       {intentCells(state, model).map((cell) => {
         const focused = cell.ids.some((id) => model.focusIntents.has(id));
         if (!show && !focused) return null;
@@ -242,11 +281,11 @@ function IntentFloor({ state, model, show }: IntentLayerProps): ReactElement | n
         const showQueue = first.get(cell.queue) === posKey(cell.pos);
         return (
           <g key={posKey(cell.pos)} className="ww-intent-cell">
-            <IntentTile x={o.x} y={o.y} damage={cell.damage} queue={showQueue ? cell.queue : undefined} push={cell.push} animated />
+            <IntentTile x={o.x} y={o.y} damage={cell.damage} queue={showQueue ? cell.queue : undefined} push={cell.push} animated={false} />
           </g>
         );
       })}
-    </g>
+    </Svg>
   );
 }
 
@@ -481,17 +520,59 @@ function HintMarks({ state, snap }: { state: GameState; snap: ControllerSnapshot
   );
 }
 
+/**
+ * Last Flame draws the queue positions on the board (§15.4, the rail is a drawer): each
+ * attacker carries its queue number(s) on a dark disc at its top-left corner.
+ */
+function QueueBadges({ state, model }: { state: GameState; model: BoardModel }): ReactElement {
+  const byAttacker = new Map<string, number[]>();
+  for (const view of model.intents) byAttacker.set(view.attackerId, [...(byAttacker.get(view.attackerId) ?? []), view.queue]);
+  return (
+    <g className="ww-marks__queue">
+      {[...byAttacker.entries()].map(([attackerId, queues]) => {
+        const attacker = state.pieces[attackerId];
+        if (!attacker) return null;
+        const o = tileUnits({ x: attacker.pos.x, y: attacker.pos.y + attacker.size - 1 }, state.board.h);
+        const text = queues.sort((a, b) => a - b).join('·');
+        const w = Math.max(17, 7 + text.length * 7);
+        return (
+          <g key={attackerId} transform={`translate(${o.x + 2} ${o.y + 2})`} className="ww-queue-badge">
+            <rect x={0} y={0} width={w} height={17} rx={8.5} fill="#0D0B12" stroke={PALETTE.bloodWax} strokeWidth={1.6} />
+            <text className="ww-num" x={w / 2} y={12.6} fontSize={11.5} textAnchor="middle" fill={PALETTE.tallowText}>
+              {text}
+            </text>
+          </g>
+        );
+      })}
+    </g>
+  );
+}
+
+/** The keyboard cursor (arrow keys, §15.7): gold corner brackets on the tile. */
+function KeyCursor({ pos, rows }: { pos: Pos; rows: number }): ReactElement {
+  const o = tileUnits(pos, rows);
+  const corners = 'M3,15V3H15M49,3H61V15M61,49V61H49M15,61H3V49';
+  return (
+    <g transform={`translate(${o.x} ${o.y})`} className="ww-key-cursor" data-testid="key-cursor">
+      <path d={corners} fill="none" stroke="#0D0B12" strokeWidth={6} strokeLinecap="round" opacity={0.7} />
+      <path d={corners} fill="none" stroke={PALETTE.candleGold} strokeWidth={3} strokeLinecap="round" />
+    </g>
+  );
+}
+
 export function MarksOver({ snap, model, metrics }: LayerProps): ReactElement {
   const { state, latest, selection } = snap;
   const hovered = model.targeting?.hovered;
   return (
     <Svg metrics={metrics} className="ww-marks--over">
       <IntentBadges state={state} model={model} show={selection.showIntents} />
+      {state.config.mode === 'last_flame' && selection.showIntents && <QueueBadges state={state} model={model} />}
       {model.preview && <PreviewTiles tiles={model.preview.lines.flatMap((l) => l.tiles)} rows={latest.board.h} />}
       {model.piece && <SelectedPieceMarks state={latest} hl={model.piece} />}
       {hovered && model.targeting && <CardPreviewMarks state={latest} preview={hovered.preview} color={model.targeting.color} />}
       {model.targeting?.info.steps === 0 && model.targeting.info.preview && <CardPreviewMarks state={latest} preview={model.targeting.info.preview} color={model.targeting.color} />}
       <HintMarks state={latest} snap={snap} />
+      {selection.keyCursor && selection.hover && <KeyCursor pos={selection.hover} rows={latest.board.h} />}
     </Svg>
   );
 }

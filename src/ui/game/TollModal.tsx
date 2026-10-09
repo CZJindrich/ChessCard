@@ -4,7 +4,7 @@
  * a Curse lets every seat take 2 cards at the next Chandlery. Others see who is choosing.
  */
 import type { CSSProperties, ReactElement } from 'react';
-import type { TollDef } from '../../engine/types';
+import type { GameState, TollDef } from '../../engine/types';
 import { usePresentation } from '../app/services';
 import { useController, useGameSnapshot, useRegistry } from './context';
 import { GameDialog } from './GameDialog';
@@ -41,6 +41,12 @@ function TollCard({ toll, index, onPick }: { toll: TollDef; index: number; onPic
   );
 }
 
+/** Who chooses and why: First Light in the Vigil, the lowest Glory in Last Flame (§13.4). */
+function tollLead(state: GameState, chooserName: string, several: boolean): string {
+  if (state.config.mode === 'last_flame') return `${chooserName} has the least Glory and chooses the Night's omen. It lasts until Dawn.`;
+  return several ? `${chooserName} holds First Light and chooses the Night's omen.` : "Choose the Night's omen. It lasts until Dawn.";
+}
+
 export function TollModal(): ReactElement | null {
   const snap = useGameSnapshot();
   const controller = useController();
@@ -65,7 +71,7 @@ export function TollModal(): ReactElement | null {
   const several = latest.players.filter((p) => p.kind === 'human').length > 1;
   return (
     <GameDialog eyebrow={`Night ${latest.night} · The Toll`} title="The bell tolls" size="lg" className="ww-toll-dialog" testId="toll">
-      <p className="ww-dialog__lead">{several ? `${chooserName} holds First Light and chooses the Night's omen.` : "Choose the Night's omen. It lasts until Dawn."}</p>
+      <p className="ww-dialog__lead">{tollLead(latest, chooserName, several)}</p>
       <div className="ww-toll-choice">
         <TollCard toll={blessing} index={0} onPick={() => pick(blessing.id)} />
         <TollCard toll={curse} index={1} onPick={() => pick(curse.id)} />

@@ -1,25 +1,16 @@
 /**
- * Quick Play end to end: Title → QUICK PLAY → pick Brannoc → (deploy) → move, strike and play a
- * card through the real board and hand → End Turn → the Snuff Strike plays out → back to the
- * players phase, with no console errors on the way.
+ * Quick Play end to end, with no console errors on the way.
+ * - The first-ever game: the scripted First Vigil. For each hero, every coach mark is followed by
+ *   clicking where its ring points (the hero, the coached tile, the coached card, End Turn); the
+ *   guaranteed line ends in a double kill with Dread +0 (GDD §15.2–15.3).
+ * - A later game: Title → QUICK PLAY → pick Brannoc → move, strike and play a card through the
+ *   real board and hand → End Turn → the Snuff Strike plays out → back to the players phase.
  *
  * Board positions are read from the running game (`window.__ww`), but every action is a real
  * click on the screen.
  */
 import { expect, test, type Page } from '@playwright/test';
-import type { GameController } from '../../src/game';
-import type { GameState } from '../../src/engine/types';
-
-declare global {
-  interface Window {
-    __ww?: { controller: GameController; load: (state: GameState) => void };
-  }
-}
-
-interface Pos {
-  x: number;
-  y: number;
-}
+import { seedStorage, startOneClick, watchErrors, type Pos } from './helpers';
 
 interface PieceLite {
   id: string;
@@ -94,20 +85,113 @@ function chebyshev(a: Pos, b: Pos): number {
   return Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y));
 }
 
-test('Quick Play: move, strike, play a card, end the turn and survive the Snuff', async ({ page }) => {
-  const problems: string[] = [];
-  page.on('console', (msg) => {
-    if (msg.type() === 'error') problems.push(msg.text());
+/** What the coach shows now: its mark, words and where its ring sits ("gone" without a mark). */
+async function coachSignature(page: Page): Promise<string> {
+  return page.evaluate(() => {
+    const mark = document.querySelector('[data-testid=coach-mark]');
+    const ring = document.querySelector('.ww-coach__ring')?.getBoundingClientRect();
+    if (!mark) return 'gone';
+    return `${mark.getAttribute('data-mark')}|${mark.textContent}|${ring ? `${Math.round(ring.x)},${Math.round(ring.y)}` : ''}`;
   });
-  page.on('pageerror', (err) => problems.push(err.message));
+}
 
-  await page.goto('./');
-  await page.getByRole('button', { name: /Quick Play/ }).first().click();
-  await page.getByRole('button', { name: /Play as Brannoc/ }).click();
+/** Wait until the coach stops changing (its ring follows its anchor a few times a second). */
+async function settled(page: Page): Promise<void> {
+  let last = await coachSignature(page);
+  for (let i = 0; i < 20; i++) {
+    await page.waitForTimeout(350);
+    const now = await coachSignature(page);
+    if (now === last) return;
+    last = now;
+  }
+}
+
+/** The guaranteed lines' coach marks per hero (§15.3; mark 3 is the timed info slip). */
+const LINES: ReadonlyArray<{ hero: string; marks: string[] }> = [
+  { hero: 'Brannoc', marks: ['1', '2', '3', '4', '5', '6'] },
+  { hero: 'Velveteen', marks: ['1', '2', '3', '4', '5', '6'] },
+  { hero: 'Wicklow', marks: ['1', '2', '3', '4', '5', '6'] },
+  { hero: 'Vey', marks: ['1', '2', '3', '4', '5', '6'] },
+];
+
+for (const { hero, marks } of LINES) {
+  test(`first-ever Quick Play as ${hero}: the coach marks guide the scripted line to a double kill`, async ({ page }) => {
+    test.setTimeout(90_000);
+    const problems = watchErrors(page);
+    await seedStorage(page, { games: 0, tips: [], presentation: { enemy_turn_speed: 'fast' } });
+    await startOneClick(page, 'quick_play', hero);
+    // The scripted Night readies itself (no deploy) and opens on coach mark 1.
+    const mark = page.getByTestId('coach-mark');
+    await expect(mark).toHaveAttribute('data-mark', '1', { timeout: 20_000 });
+    await expect(page.getByTestId('ready')).toHaveCount(0);
+
+    const seen: string[] = [];
+    for (let i = 0; i < 16; i++) {
+      const visible = await mark.waitFor({ timeout: 5_000 }).then(() => true, () => false);
+      if (!visible) break;
+      const id = (await mark.getAttribute('data-mark')) ?? '';
+      if (seen[seen.length - 1] !== id) seen.push(id);
+      if (id === '3') {
+        // The info slip fades by itself after 3 s.
+        await expect(mark).not.toHaveAttribute('data-mark', '3', { timeout: 6_000 });
+        continue;
+      }
+      if (id === '6') {
+        await page.getByTestId('end-turn').click();
+        const confirm = page.getByTestId('confirm-end-turn');
+        if (await confirm.isVisible().catch(() => false)) await confirm.click();
+        break;
+      }
+      // Click where the coach ring points; wait for the coach to move on (new mark, words or ring).
+      const ring = await page.locator('.ww-coach__ring').boundingBox();
+      if (!ring) throw new Error(`mark ${id}: no ring`);
+      const before = await coachSignature(page);
+      await page.mouse.click(ring.x + ring.width / 2, ring.y + ring.height / 2);
+      await expect.poll(() => coachSignature(page), { timeout: 8_000 }).not.toBe(before);
+      await settled(page);
+    }
+    expect(seen).toEqual(marks);
+
+    // The turn ends; the guaranteed line killed both Sootlings and no Candle was hit.
+    await page.waitForFunction(() => window.__ww?.controller.getSnapshot().latest.phase !== 'players', null, { timeout: 30_000 });
+    const result = await page.evaluate(() => {
+      const s = window.__ww?.controller.getSnapshot().latest;
+      return { kills: s?.players[0].stats.kills ?? 0, dread: s?.vigil?.dread ?? -1 };
+    });
+    expect(result.kills).toBeGreaterThanOrEqual(2);
+    expect(result.dread).toBe(0);
+    await expect(page.getByTestId('coach-layer')).toHaveCount(0);
+    expect(problems, problems.join('\n')).toEqual([]);
+  });
+}
+
+test('a later Quick Play: move, strike, play a card, end the turn and survive the Snuff', async ({ page }) => {
+  const problems = watchErrors(page);
+  await seedStorage(page, { games: 3, presentation: { enemy_turn_speed: 'fast' } });
+  await startOneClick(page, 'quick_play', 'Brannoc');
   await expect(page.getByTestId('game-screen')).toBeVisible();
 
   const ready = page.getByTestId('ready');
   if (await ready.isVisible().catch(() => false)) await ready.click();
+  await waitIdle(page, 'players');
+  // The seed is random: bring one Snuff two steps from the hero along a clear line (straight
+  // ahead first, then any other direction), so one step puts it in reach.
+  await page.evaluate(() => {
+    const ww = window.__ww;
+    if (!ww) throw new Error('no game');
+    const st = structuredClone(ww.controller.getSnapshot().latest);
+    const hero = st.pieces[st.players[0].heroPieceId];
+    const snuff = Object.values(st.pieces).find((p) => p.side === 'snuff' && p.kind === 'enemy');
+    if (!snuff) throw new Error('no Snuff on the board');
+    const free = (p: { x: number; y: number }): boolean =>
+      p.x >= 0 && p.y >= 0 && p.x < st.board.w && p.y < st.board.h && !Object.values(st.pieces).some((q) => q.id !== snuff.id && q.pos.x === p.x && q.pos.y === p.y) && st.board.tiles[p.y * st.board.w + p.x].type === 'flagstone';
+    const directions = [[0, 1], [1, 1], [-1, 1], [1, 0], [-1, 0], [0, -1], [1, -1], [-1, -1]];
+    const dir = directions.find(([dx, dy]) => free({ x: hero.pos.x + dx, y: hero.pos.y + dy }) && free({ x: hero.pos.x + 2 * dx, y: hero.pos.y + 2 * dy }));
+    if (!dir) throw new Error('no clear line around the hero');
+    snuff.pos = { x: hero.pos.x + 2 * dir[0], y: hero.pos.y + 2 * dir[1] };
+    st.intents = st.intents.filter((i) => i.attackerId !== snuff.id);
+    ww.load(st);
+  });
   await waitIdle(page, 'players');
 
   let snap = await readSnap(page);

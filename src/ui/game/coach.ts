@@ -1,10 +1,12 @@
 /**
  * Coach marks for the scripted first turn (GDD §15.2–15.3), driven by the engine's tutorial
- * script (`tutorialScript(heroId)`). Pure: which step is current, whether it is complete or can
- * no longer be done (abort), its text for mouse or touch, and where its arrow points.
+ * script: `tutorialScript(heroId)` lists the steps, `matchesTutorialStep` says whether an action
+ * the player took performs a step, and `tutorialAction` builds a step's action (to check that it
+ * can still be done, and where a summon's arrow points). Pure: which step is current, its text
+ * for mouse or touch, where its arrow points, and which actions marks 1–4 allow.
  */
-import type { TutorialScript, TutorialStep } from '../../engine';
-import type { CardTargetInfo, GameState, Piece, Pos } from '../../engine/types';
+import { matchesTutorialStep, tutorialAction, validateAction, type TutorialScript, type TutorialStep } from '../../engine';
+import type { Action, CardTargetChoice, CardTargetInfo, GameState, Piece, Pos } from '../../engine/types';
 
 export type InputKind = 'mouse' | 'touch';
 
@@ -28,11 +30,16 @@ export interface CoachContext {
   selectedCardId: string | null;
   /** Card target info for the selected card (summon tiles), when one is selected. */
   cardInfo: CardTargetInfo | null;
-  /** Count of each card id in the opening hand. */
-  openingHand: Readonly<Record<string, number>>;
-  /** Whether a card in hand can be played right now (marks skip themselves when not). */
-  canPlay: (cardId: string) => boolean;
 }
+
+export interface CoachProgress {
+  /** Steps closed by the player ("Got it", the info mark's timeout). */
+  dismissed: ReadonlySet<number>;
+  /** Steps whose action the player performed (`matchesTutorialStep`), undo taken into account. */
+  completed: ReadonlySet<number>;
+}
+
+export const NO_PROGRESS: CoachProgress = { dismissed: new Set(), completed: new Set() };
 
 function same(a: Pos | null, b: Pos | null): boolean {
   return a !== null && b !== null && a.x === b.x && a.y === b.y;
@@ -43,40 +50,55 @@ export function heroPiece(s: GameState, seat = 0): Piece | null {
   return id ? (s.pieces[id] ?? null) : null;
 }
 
-function snuffAt(s: GameState, pos: Pos): boolean {
-  return Object.values(s.pieces).some((p) => p.side === 'snuff' && same(p.pos, pos));
-}
-
-function handCount(s: GameState, cardId: string, seat = 0): number {
-  return s.players[seat]?.hand.filter((c) => c.id === cardId).length ?? 0;
-}
-
 export type StepStatus = 'open' | 'done' | 'aborted';
 
+/** The step's action can still be made right now (a summon the player can't afford can't). */
+function stepPossible(step: TutorialStep, s: GameState): boolean {
+  const action = tutorialAction(s, step);
+  return action !== null && validateAction(s, action).ok;
+}
+
 /** Whether a scripted step is done, still to do, or can no longer be done. */
-export function stepStatus(step: TutorialStep, s: GameState, ctx: CoachContext): StepStatus {
+export function stepStatus(script: TutorialScript, index: number, s: GameState, ctx: CoachContext, progress: CoachProgress): StepStatus {
+  const step = script.steps[index];
   const hero = heroPiece(s);
   if (!hero) return 'aborted';
+  if (progress.completed.has(index) || progress.dismissed.has(index)) return 'done';
+  const laterDone = script.steps.some((_, j) => j > index && progress.completed.has(j));
   switch (step.action) {
     case 'select':
-      return ctx.selectedPieceId === hero.id || !same(hero.pos, step.from) ? 'done' : 'open';
-    case 'move':
-      if (same(hero.pos, step.target)) return 'done';
-      return hero.movesLeft <= 0 ? 'aborted' : 'open';
-    case 'strike':
-      if (step.target && !snuffAt(s, step.target)) return 'done';
-      return hero.strikesLeft <= 0 ? 'aborted' : 'open';
-    case 'play_card': {
-      if (!step.cardId) return 'aborted';
-      if (handCount(s, step.cardId) < (ctx.openingHand[step.cardId] ?? 0)) return 'done';
-      if (handCount(s, step.cardId) === 0) return 'aborted';
-      return ctx.canPlay(step.cardId) ? 'open' : 'aborted';
-    }
+      return laterDone || ctx.selectedPieceId === hero.id ? 'done' : 'open';
     case 'info':
-      return 'open';
+      return laterDone ? 'done' : 'open';
     case 'end_turn':
       return s.phase !== 'players' || (s.players[0]?.turnEnded ?? false) ? 'done' : 'open';
+    case 'move':
+    case 'strike':
+    case 'play_card':
+      return stepPossible(step, s) ? 'open' : 'aborted';
   }
+}
+
+/** The open step an action performs (by `matchesTutorialStep`), or null. */
+export function matchedStep(script: TutorialScript, before: GameState, action: Action, progress: CoachProgress): number | null {
+  for (let i = 0; i < script.steps.length; i++) {
+    if (progress.completed.has(i)) continue;
+    if (matchesTutorialStep(before, script.steps[i], action)) return i;
+  }
+  return null;
+}
+
+/**
+ * The player's actions during the scripted turn, newest last: the step each performed, or -1.
+ * Undo pops the newest, so an undone step opens again.
+ */
+export function recordAction(history: readonly number[], script: TutorialScript, before: GameState, action: Action, progress: CoachProgress): number[] {
+  if (action.type === 'undo') return history.slice(0, -1);
+  return [...history, matchedStep(script, before, action, progress) ?? -1];
+}
+
+export function completedSteps(history: readonly number[]): Set<number> {
+  return new Set(history.filter((i) => i >= 0));
 }
 
 const MARK3: Readonly<Record<string, string>> = {
@@ -124,6 +146,21 @@ function posName(pos: Pos | null): string {
   return pos ? `${String.fromCharCode(97 + pos.x)}${pos.y + 1}` : 'the gold dot';
 }
 
+function choicePos(s: GameState, choice: CardTargetChoice | undefined): Pos | null {
+  if (!choice) return null;
+  if (choice.kind === 'tile') return choice.pos;
+  if (choice.kind === 'piece') return s.pieces[choice.pieceId]?.pos ?? null;
+  return null;
+}
+
+/** Where a card step's arrow points once the card is selected: its target, or the first glowing tile. */
+function cardTile(step: TutorialStep, s: GameState, ctx: CoachContext): Pos | null {
+  if (step.target) return step.target;
+  const action = tutorialAction(s, step);
+  const fromScript = action && action.type === 'play_card' ? choicePos(s, action.targets[0]) : null;
+  return fromScript ?? ctx.cardInfo?.targets[0]?.pos ?? null;
+}
+
 /** Where the step's arrow points right now. */
 export function stepAnchor(step: TutorialStep, s: GameState, ctx: CoachContext): CoachAnchor {
   const hero = heroPiece(s);
@@ -136,7 +173,7 @@ export function stepAnchor(step: TutorialStep, s: GameState, ctx: CoachContext):
       return ctx.selectedPieceId === hero?.id && step.target ? { kind: 'tile', pos: step.target } : { kind: 'tile', pos: hero?.pos ?? step.target ?? { x: 0, y: 0 } };
     case 'play_card': {
       if (ctx.selectedCardId !== step.cardId || !step.cardId) return { kind: 'card', cardId: step.cardId ?? '' };
-      const tile = step.target ?? ctx.cardInfo?.targets[0]?.pos ?? null;
+      const tile = cardTile(step, s, ctx);
       return tile ? { kind: 'tile', pos: tile } : { kind: 'card', cardId: step.cardId };
     }
     case 'end_turn':
@@ -144,18 +181,11 @@ export function stepAnchor(step: TutorialStep, s: GameState, ctx: CoachContext):
   }
 }
 
-export interface CoachProgress {
-  /** Steps closed by the player ("Got it", the info mark's timeout). */
-  dismissed: ReadonlySet<number>;
-}
-
 /** The current coach mark, or null when the line is finished (or nothing applies). */
 export function currentMark(script: TutorialScript, s: GameState, ctx: CoachContext, progress: CoachProgress, input: InputKind, cardNames: Readonly<Record<string, string>>): CoachView | null {
   for (let i = 0; i < script.steps.length; i++) {
     const step = script.steps[i];
-    if (progress.dismissed.has(i)) continue;
-    const status = stepStatus(step, s, ctx);
-    if (status !== 'open') continue;
+    if (stepStatus(script, i, s, ctx, progress) !== 'open') continue;
     return {
       stepIndex: i,
       markId: step.markId,
@@ -166,6 +196,12 @@ export function currentMark(script: TutorialScript, s: GameState, ctx: CoachCont
     };
   }
   return null;
+}
+
+/** During marks 1–4, may the player take this action? Only the coached step's own action. */
+export function actionAllowed(view: CoachView | null, script: TutorialScript, s: GameState, action: Action): boolean {
+  if (!view || !view.restricts) return true;
+  return matchesTutorialStep(s, script.steps[view.stepIndex], action);
 }
 
 /** During marks 1–4, may the player click this tile? (The coached tiles and the hero.) */

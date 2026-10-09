@@ -5,13 +5,16 @@
 import { expect } from 'vitest';
 import { customSelection, NO_FLAGS, resolveConfig } from '../../../src/config';
 import { applyAction, createGame, getContent, pendingAutomation, sq, sqName } from '../../../src/engine';
-import type { Action, GameConfig, GameEvent, GameState, ModeId, Piece, RuleValues, SeatConfig, TileId } from '../../../src/engine';
+import type { Action, DifficultyId, GameConfig, GameEvent, GameState, LengthId, ModeId, Piece, RuleValues, SeatConfig, TileId } from '../../../src/engine';
 import { createCandle, createUnit, spawnEnemy } from '../../../src/engine/spawn';
 import { makeCtx, removePiece } from '../../../src/engine/state';
 
 export interface GameOptions {
   seed?: string;
   mode?: ModeId;
+  /** Length and difficulty presets (an override of these keys is ignored by the config layering). */
+  length?: LengthId;
+  difficulty?: DifficultyId;
   seats?: Array<Partial<SeatConfig>>;
   overrides?: Partial<RuleValues>;
   flags?: Partial<Pick<GameConfig, 'tutorial' | 'firstGame' | 'daily' | 'modded'>>;
@@ -21,6 +24,8 @@ export function configFor(opts: GameOptions = {}): GameConfig {
   const seats = (opts.seats ?? [{ kind: 'human', hero: 'sconce_paladin' }]).map((seat) => ({ kind: seat.kind ?? 'human', hero: seat.hero ?? null, name: seat.name ?? '' }));
   const selection = customSelection({
     mode: opts.mode ?? 'vigil',
+    length: opts.length,
+    difficulty: opts.difficulty,
     overrides: { seed: opts.seed ?? 'test-seed', seats, ...(opts.overrides ?? {}) },
     flags: { ...NO_FLAGS, ...opts.flags },
   });

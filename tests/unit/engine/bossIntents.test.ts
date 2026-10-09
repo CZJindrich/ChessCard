@@ -23,6 +23,14 @@ function lock(s: GameState, ...ids: string[]): Intent[] {
   return intents;
 }
 
+/** Nocturna's `devour_light` heal (boss_intents.json, Hunger's extra rule). */
+function devourHeal(): number {
+  const extra = reg.bossIntents.byId.hunger.extra;
+  const heal = extra?.op === 'custom' ? extra.args.heal : undefined;
+  if (typeof heal !== 'number') throw new Error('hunger has no devour_light heal');
+  return heal;
+}
+
 function squares(tiles: readonly { x: number; y: number }[]): string[] {
   return tiles.map(sqName).sort();
 }
@@ -246,13 +254,14 @@ describe('Hunger (single, within 6, 3 damage, devour_light)', () => {
     expect([sqName(a.tiles[0]), sqName(b.tiles[0])]).toEqual(['b3', 'h1']);
   });
 
-  it('heals 3 when it snuffs a Candle or puts out a Lit Shrine; not when the hero survives', () => {
+  it('heals (devour_light) when it snuffs a Candle or puts out a Lit Shrine; not when the hero survives', () => {
+    const heal = devourHeal();
     const s = blankBoss('nocturna', 'd5', 'sconce_paladin', 'a1');
     candleAt(s, 'h1');
     bossPiece(s).hp -= 5;
     lock(s, 'hunger');
     const candleBite = snuffStrike(s);
-    expect(bossPiece(candleBite.state).hp).toBe(bossPiece(s).hp + 3);
+    expect(bossPiece(candleBite.state).hp).toBe(bossPiece(s).hp + heal);
     expect(eventsOf(candleBite.events, 'heal')).toHaveLength(1);
 
     const shrine = blankBoss('nocturna', 'd5', 'sconce_paladin', 'a1');
@@ -261,7 +270,7 @@ describe('Hunger (single, within 6, 3 damage, devour_light)', () => {
     lock(shrine, 'hunger');
     const dark = snuffStrike(shrine).state;
     expect(dark.board.tiles[7 * 8].shrineLit).toBe(false);
-    expect(bossPiece(dark).hp).toBe(bossPiece(shrine).hp + 3);
+    expect(bossPiece(dark).hp).toBe(bossPiece(shrine).hp + heal);
 
     const hero = blankBoss('nocturna', 'd5', 'sconce_paladin', 'a1');
     bossPiece(hero).hp -= 5;

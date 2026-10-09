@@ -4,7 +4,7 @@
  * Copy settings code and Paste code. Everything is one ConfigSelection resolved on each render.
  */
 import { useMemo, useState, type ReactElement } from 'react';
-import { bossForSeed, dailySeed, decodeSettingsCode, encodeSettingsCode, resolveConfig, utcDateString } from '../../../config';
+import { bossForSeed, dailySeed, decodeSettingsCode, encodeSettingsCode, HOST_OPTION_DEFAULTS, resolveConfig, utcDateString } from '../../../config';
 import type { ConfigSelection, CustomPreset, LocalProfile } from '../../../config';
 import { reasonText } from '../../../engine/content';
 import type { ModeId, RuleKey, RuleValues, SeatConfig, SeatKind } from '../../../engine/types';
@@ -12,6 +12,8 @@ import { prepareLaunch } from '../../app/launch';
 import { useContentState, useProfile, useServices } from '../../app/services';
 import { Button } from '../../components/Button';
 import { Segmented } from '../../components/Chip';
+import { InfoTip } from '../../components/Tooltip';
+import { Toggle } from '../../components/Toggle';
 import { Modal } from '../../components/Modal';
 import { Panel } from '../../components/Panel';
 import { ScreenFrame } from '../../components/ScreenFrame';
@@ -94,6 +96,7 @@ export function SetupScreen({ initial }: { initial?: ConfigSelection }): ReactEl
   const registry = content.registry;
   const [selection, setSelection] = useState<ConfigSelection>(() => initial ?? initialSetupSelection(profile.playerName));
   const [dialog, setDialog] = useState<null | { kind: 'paste' } | { kind: 'copy'; code: string }>(null);
+  const [privacy, setPrivacy] = useState(HOST_OPTION_DEFAULTS.hot_seat_privacy);
 
   const resolved = useMemo(() => resolveConfig({ ...selection, flags: { ...selection.flags, modded: content.modded } }, { content: registry }), [selection, content.modded, registry]);
   const { config, derived, sources, validation } = resolved;
@@ -119,7 +122,7 @@ export function SetupScreen({ initial }: { initial?: ConfigSelection }): ReactEl
     }
     services.nav.replace({ screen: 'setup', selection });
     if (online) services.nav.push({ screen: 'lobby', role: 'host', config: result.config, selection: result.selection });
-    else services.nav.push({ screen: 'game', config: result.config, selection: result.selection });
+    else services.nav.push({ screen: 'game', config: result.config, selection: result.selection, hostOptions: { hot_seat_privacy: privacy } });
   };
 
   const copyCode = (): void => {
@@ -164,6 +167,7 @@ export function SetupScreen({ initial }: { initial?: ConfigSelection }): ReactEl
   const addLabel = config.mode === 'vigil' ? 'Add AI ally' : 'Add bot';
   const otherIssues = validation.issues.filter((i) => i.key === 'seats' || i.key === 'board_size' || i.key === 'mode' || i.key === 'length' || i.key === 'difficulty');
   const startReason = validation.ok ? null : validation.issues.map((i) => i.message).join(' · ');
+  const hotSeat = config.mode === 'last_flame' && seats.filter((s) => s.kind === 'human').length >= 2;
 
   return (
     <ScreenFrame
@@ -232,6 +236,7 @@ export function SetupScreen({ initial }: { initial?: ConfigSelection }): ReactEl
               />
             ))}
           </div>
+          {hotSeat && <PrivacyOption checked={privacy} onChange={setPrivacy} />}
           {otherIssues.length > 0 && (
             <ul className="ww-issues ww-setup__seat-issues">
               {otherIssues.map((issue, i) => (
@@ -286,6 +291,24 @@ export function SetupScreen({ initial }: { initial?: ConfigSelection }): ReactEl
       {dialog?.kind === 'paste' && <PasteCodeDialog onClose={() => setDialog(null)} onApply={applyCode} />}
       {dialog?.kind === 'copy' && <CopyFallbackDialog code={dialog.code} onClose={() => setDialog(null)} />}
     </ScreenFrame>
+  );
+}
+
+/** Host option (§14.5): Last Flame hot-seat Pass screens hide each player's hand from the others. */
+function PrivacyOption({ checked, onChange }: { checked: boolean; onChange: (on: boolean) => void }): ReactElement {
+  return (
+    <div className="ww-param ww-setup__host-option" data-testid="hot-seat-privacy">
+      <div className="ww-param__label">
+        <span>Hot-seat privacy</span>
+        <InfoTip text="A Pass screen hides the hands before every seat turn and every private draft, so players sharing this screen can't see each other's cards." label="About hot-seat privacy" />
+      </div>
+      <div className="ww-param__control">
+        <Toggle label="Hot-seat privacy" checked={checked} onChange={onChange} />
+      </div>
+      <div className="ww-param__source">
+        <span className="ww-badge">Host option</span>
+      </div>
+    </div>
   );
 }
 

@@ -1,0 +1,101 @@
+/*
+ * Loading and failure veils of the code-split screens (src/ui/app/lazyScreens.ts): a lone candle
+ * on night ink. The loading veil fades in after a short delay so fast loads never flash it.
+ */
+
+.ww-veil {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.9rem;
+  padding: 2rem 1rem;
+  text-align: center;
+  color: var(--ww-text-dim);
+  background:
+    radial-gradient(ellipse 38% 32% at 50% 46%, rgba(244, 185, 66, 0.08), transparent 70%),
+    var(--ww-night-ink);
+}
+
+.ww-veil--loading {
+  opacity: 0;
+  animation: ww-veil-in 400ms var(--ww-ease) 180ms forwards;
+}
+
+.ww-veil__candle {
+  width: 3.2rem;
+  height: auto;
+  overflow: visible;
+}
+
+.ww-veil__flame {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  animation: ww-veil-flicker 1.9s ease-in-out infinite alternate;
+}
+
+.ww-veil__label {
+  margin: 0;
+  font-family: var(--ww-font-label);
+  font-weight: 600;
+  font-size: 0.85rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.ww-veil__title {
+  margin: 0.4rem 0 0;
+  font-family: var(--ww-font-display);
+  font-size: 1.6rem;
+  color: var(--ww-text);
+}
+
+.ww-veil__text {
+  margin: 0;
+  max-width: 28rem;
+  font-family: var(--ww-font-body);
+  font-size: 1.05rem;
+}
+
+.ww-veil__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.75rem;
+  margin-top: 0.6rem;
+}
+
+.ww-veil--failed .ww-veil__flame {
+  animation: none;
+  opacity: 0.35;
+}
+
+@keyframes ww-veil-in {
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes ww-veil-flicker {
+  0% {
+    transform: scaleY(0.94) skewX(-3deg);
+  }
+  50% {
+    transform: scaleY(1.06) skewX(2deg);
+  }
+  100% {
+    transform: scaleY(0.98) skewX(4deg);
+  }
+}
+
+.ww-reduced-motion .ww-veil__flame {
+  animation: none !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ww-veil__flame {
+    animation: none;
+  }
+}

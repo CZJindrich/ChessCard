@@ -172,7 +172,9 @@ describe('Setup', () => {
   });
 });
 
-describe('How to Play', () => {
+// Heavy jsdom renders (every rule card, every Codex tab): generous timeouts so a busy machine
+// running the whole suite in parallel does not fail them.
+describe('How to Play', { timeout: 20_000 }, () => {
   it('shows the 8 rules, 8 runes and the glossary, and starts the tutorial', () => {
     const app = renderApp({ route: { screen: 'how_to_play' } });
     expect(screen.getAllByRole('listitem').filter((li) => li.className === 'ww-rulecard')).toHaveLength(8);
@@ -195,7 +197,7 @@ describe('How to Play', () => {
   });
 });
 
-describe('Codex', () => {
+describe('Codex', { timeout: 20_000 }, () => {
   it('renders every tab from the content registry', () => {
     renderApp({ route: { screen: 'codex' } });
     expect(screen.getAllByRole('tab')).toHaveLength(CODEX_TABS.length);
@@ -273,7 +275,7 @@ describe('Settings', () => {
 });
 
 describe('Lobby and game screen', () => {
-  it('normalises a typed room code and explains that online play is not wired yet', () => {
+  it('normalises a typed room code and explains when this build has no online client', () => {
     const app = renderApp({ route: { screen: 'lobby', role: 'join' } });
     const input = screen.getByRole('textbox', { name: 'Room code' });
     fireEvent.change(input, { target: { value: 'kw-tra' } });

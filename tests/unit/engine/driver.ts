@@ -1,7 +1,9 @@
 /**
  * A deterministic game driver for flow tests. `pass` seats only end their turns; `play` seats
  * strike (lethal first), play the first playable card, then step toward the nearest Snuff.
- * Bots use the engine's placeholder planner and `botChoice`, as the client controller would.
+ * Bot seats plan each seat turn once with `planBotTurn` (a small node budget keeps the suite
+ * fast) and replay it, re-planning when an action has become illegal, as the client controller
+ * would; their other decisions come from `botChoice`.
  */
 import {
   activeSeats,
@@ -99,27 +101,50 @@ export function cardPlay(s: GameState, seat: number, cardUid: string, choose: (n
   return { type: 'play_card', seat, cardUid, targets, ...(mode !== undefined ? { mode } : {}) };
 }
 
-function nextAction(s: GameState, policy: Policy): Action {
+/** Node budget of the bots' planner in flow tests (the real levels are covered by bots*.test.ts). */
+export const DRIVER_BOT_BUDGET = 40;
+
+interface BotTurn {
+  seat: number;
+  plan: Action[];
+}
+
+/** The next planned action of a bot seat (planned once per seat turn, re-planned when illegal). */
+function botAction(s: GameState, seat: number, turn: { current: BotTurn | null }): Action {
+  const level = s.players[seat].kind;
+  if (level === 'human') return { type: 'end_turn', seat };
+  for (let attempt = 0; attempt < 2; attempt++) {
+    if (!turn.current || turn.current.seat !== seat || attempt > 0) turn.current = { seat, plan: planBotTurn(s, seat, level, { budget: DRIVER_BOT_BUDGET }) };
+    const next = turn.current.plan.shift();
+    if (next && legal(s, next)) return next;
+  }
+  return { type: 'end_turn', seat };
+}
+
+function nextAction(s: GameState, policy: Policy, turn: { current: BotTurn | null }): Action {
   if (pendingAutomation(s)) return { type: 'advance' };
   const seats = activeSeats(s);
   if (s.phase === 'players') {
     if (s.activeSeat === null) return { type: 'claim_turn', seat: seats[0] };
     const seat = s.activeSeat;
-    if (s.players[seat].kind !== 'human') return planBotTurn(s, seat, 'bot_warden')[0];
+    if (s.players[seat].kind !== 'human') return botAction(s, seat, turn);
     return policy === 'play' ? playAction(s, seat) : { type: 'end_turn', seat };
   }
-  const choice = botChoice(s, seats[0]);
-  if (!choice) throw new Error(`no choice in ${s.phase} for seat ${seats[0]}`);
-  return choice;
+  for (const seat of seats) {
+    const choice = botChoice(s, seat);
+    if (choice) return choice;
+  }
+  throw new Error(`no choice in ${s.phase} for seats ${seats.join(', ')}`);
 }
 
 export function runGame(start: GameState, opts: RunOptions): RunResult {
   let s = start;
   const actions: Action[] = [];
+  const turn: { current: BotTurn | null } = { current: null };
   for (let step = 0; step < opts.maxSteps && !s.result; step++) {
     if (opts.stopWhen?.(s)) break;
     opts.onState?.(s);
-    const action = nextAction(s, opts.policy);
+    const action = nextAction(s, opts.policy, turn);
     const result = applyAction(s, action);
     if (!result.ok) throw new Error(`${action.type} rejected in ${s.phase}: ${result.reason}`);
     actions.push(action);

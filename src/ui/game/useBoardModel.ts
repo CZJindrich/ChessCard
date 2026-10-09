@@ -24,6 +24,8 @@ export interface BoardModel {
   piece: PieceHighlights | null;
   targeting: TargetingModel | null;
   deploy: Pos[];
+  /** Legal Haunt Plume tiles while the acting seat is haunting (Last Flame). */
+  haunt: Pos[];
   inspect: Piece | null;
   inspectRange: Set<string>;
   intents: IntentView[];
@@ -80,6 +82,8 @@ export function useBoardModel(snap: ControllerSnapshot): BoardModel {
 
   const deploy = useMemo(() => (idle && uiSeat !== null && selection.pieceId && latest.phase === 'night_setup' ? deployTargets(latest, uiSeat, selection.pieceId) : []), [idle, uiSeat, selection.pieceId, latest]);
 
+  const haunt = useMemo(() => (idle && uiSeat !== null && (latest.players[uiSeat]?.haunt.pending ?? false) ? controller.hauntTargets().map((o) => o.pos) : []), [controller, idle, uiSeat, latest]);
+
   const hoveredPiece = selection.hover && !selection.card && !selection.power ? pieceAt(snap.state, selection.hover) : null;
   const inspectId = selection.inspectId ?? (hoveredPiece && hoveredPiece.side === 'snuff' ? hoveredPiece.id : null);
   const inspect = inspectId ? (snap.state.pieces[inspectId] ?? null) : null;
@@ -97,5 +101,5 @@ export function useBoardModel(snap: ControllerSnapshot): BoardModel {
 
   const preview = useMemo(() => (idle && selection.previewEndTurn && latest.phase === 'players' ? endTurnPreview(latest, registry) : null), [idle, selection.previewEndTurn, latest, registry]);
 
-  return { piece, targeting, deploy, inspect, inspectRange, intents, focusIntents, preview };
+  return { piece, targeting, deploy, haunt, inspect, inspectRange, intents, focusIntents, preview };
 }

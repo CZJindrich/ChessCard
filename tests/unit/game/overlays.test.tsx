@@ -274,6 +274,49 @@ describe('onboarding', () => {
     expect(screen.queryByTestId('coach-layer')).toBeNull();
   });
 
+  it('coach marks progress with the guaranteed line: hero, d3, the Sootling, Spark, the Squire, End Turn', async () => {
+    await startGame(0);
+    await run(3000);
+    const mark = (): string | null => screen.queryByTestId('coach-mark')?.getAttribute('data-mark') ?? null;
+    const controller = window.__ww?.controller;
+    if (!controller) throw new Error('no controller');
+    const s = latest();
+    const heroId = s.players[0].heroPieceId;
+    const act1 = async (fn: () => void, ms = 800): Promise<void> => {
+      await act(async () => fn());
+      await run(ms);
+    };
+    expect(mark()).toBe('1');
+    await act1(() => controller.selectPiece(heroId));
+    expect(mark()).toBe('2');
+    expect(screen.getByTestId('coach-mark').textContent).toContain('Step to d3');
+    // Off the line is refused: a different step.
+    await act1(() => controller.clickTile({ x: 4, y: 1 }));
+    expect(latest().pieces[heroId].pos).toEqual({ x: 3, y: 1 });
+    await act1(() => controller.clickTile({ x: 3, y: 2 }));
+    expect(screen.getByTestId('coach-mark').textContent).toContain('Strike the Sootling');
+    await act1(() => controller.clickTile({ x: 2, y: 3 }));
+    expect(mark()).toBe('3');
+    await run(3200);
+    expect(mark()).toBe('4');
+    const spark = latest().players[0].hand.find((c) => c.id === 'spark');
+    if (!spark) throw new Error('no Spark in hand');
+    await act1(() => controller.selectCard(spark.uid));
+    await act1(() => controller.clickTile({ x: 5, y: 4 }));
+    expect(mark()).toBe('5');
+    const squire = latest().players[0].hand.find((c) => c.id === 'call_the_squire');
+    if (!squire) throw new Error('no Call the Squire in hand');
+    await act1(() => controller.selectCard(squire.uid), 300);
+    const tile = controller.targetInfo()?.targets[0]?.pos;
+    if (!tile) throw new Error('no summon tile');
+    await act1(() => controller.clickTile(tile));
+    expect(mark()).toBe('6');
+    expect(latest().players[0].stats.kills).toBe(2);
+    expect(latest().vigil?.dread).toBe(0);
+    await act1(() => controller.endTurn(true));
+    expect(screen.queryByTestId('coach-layer')).toBeNull();
+  });
+
   it('a first-time tip shows once (here: the Plume tip on the first End Turn preview)', async () => {
     localStorage.removeItem('chesscard.tips');
     await startGame(1);

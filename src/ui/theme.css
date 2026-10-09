@@ -1490,30 +1490,6 @@ kbd,
 }
 
 /* ------------------------------------------------------------------------------------------
- * Game route placeholder (until the game screen replaces it)
- * ---------------------------------------------------------------------------------------- */
-
-.ww-placeholder {
-  grid-row: 1 / -1;
-  display: grid;
-  place-items: center;
-}
-.ww-placeholder__seats li {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-  margin-top: 0.5rem;
-}
-.ww-placeholder__meta {
-  margin-top: 0.8rem;
-}
-.ww-placeholder__actions {
-  display: flex;
-  gap: 0.6rem;
-  margin-top: 1rem;
-}
-
-/* ------------------------------------------------------------------------------------------
  * Reduced motion: looping motion freezes, entrances become instant fades (§14.4).
  * ---------------------------------------------------------------------------------------- */
 

@@ -9,7 +9,7 @@ import type { ContentRegistry, GameEvent, GameState } from '../../engine/types';
 import type { PlaybackStep } from '../../game';
 import { useController, useGameSnapshot, useRegistry } from './context';
 
-type BannerKind = 'beat' | 'turn' | 'die' | 'phase' | 'dawn' | 'toll' | 'alarm' | 'checkmate';
+type BannerKind = 'beat' | 'turn' | 'die' | 'phase' | 'dawn' | 'toll' | 'alarm' | 'checkmate' | 'gloam' | 'out';
 
 interface Banner {
   id: number;
@@ -32,7 +32,8 @@ function bannerFor(e: GameEvent, after: GameState, uiSeat: number | null, reg: C
       const player = after.players[e.seat];
       if (!player) return null;
       const yours = uiSeat === e.seat || (player.kind === 'human' && after.players.filter((p) => p.kind === 'human').length === 1);
-      return { kind: 'turn', title: yours ? 'Your turn' : `${player.name}'s turn`, subtitle: `${e.flame} Flame` };
+      const truce = after.lastFlame?.truce ? ' · Truce: no fighting rivals' : '';
+      return { kind: 'turn', title: yours ? 'Your turn' : `${player.name}'s turn`, subtitle: `${e.flame} Flame${truce}` };
     }
     case 'omen_rolled': {
       const omen = reg.omens.byId[e.effectiveId];
@@ -54,6 +55,16 @@ function bannerFor(e: GameEvent, after: GameState, uiSeat: number | null, reg: C
     }
     case 'dread_changed':
       return e.threshold === 'deep_dark' ? { kind: 'alarm', title: 'The dark deepens', subtitle: `Dread ${e.to}` } : null;
+    case 'gloam_warning':
+      return { kind: 'gloam', title: 'The Gloam stirs', subtitle: 'The violet ring closes at this round’s Tally' };
+    case 'gloam_closed':
+      return { kind: 'gloam', title: 'The Gloam closes', subtitle: `The open board is ${e.openSize}×${e.openSize}` };
+    case 'player_eliminated': {
+      const player = after.players[e.seat];
+      if (!player) return null;
+      const you = uiSeat === e.seat || (player.kind === 'human' && after.players.filter((p) => p.kind === 'human').length === 1);
+      return { kind: 'out', title: you ? 'You are out of the Trial' : `${player.name} is out`, subtitle: after.config.haunting ? 'From the smoke, they may haunt the living' : `Elimination band ${e.band}` };
+    }
     default:
       return null;
   }
@@ -62,7 +73,8 @@ function bannerFor(e: GameEvent, after: GameState, uiSeat: number | null, reg: C
 const MIN_SHOW_MS = 700;
 
 function showFor(kind: BannerKind, stepMs: number): number {
-  if (kind === 'phase' || kind === 'checkmate') return Math.max(BIG_BANNER_MS, stepMs);
+  if (kind === 'phase' || kind === 'checkmate' || kind === 'out') return Math.max(BIG_BANNER_MS, stepMs);
+  if (kind === 'gloam') return Math.max(1300, stepMs + 200);
   if (kind === 'die') return Math.max(1500, stepMs + 300);
   return Math.max(MIN_SHOW_MS, stepMs + 120);
 }
@@ -96,7 +108,7 @@ export function Banners(): ReactElement | null {
   }, [controller, registry]);
 
   if (!banner) return null;
-  const big = banner.kind === 'phase' || banner.kind === 'checkmate';
+  const big = banner.kind === 'phase' || banner.kind === 'checkmate' || banner.kind === 'out';
   return (
     <div key={banner.id} className={`ww-banner ww-banner--${banner.kind}`} style={{ '--ww-banner-dur': `${banner.duration}ms` } as CSSProperties} role="status" aria-live="polite" data-testid="banner">
       {big && <span className="ww-banner__shockwave" aria-hidden="true" />}

@@ -14,14 +14,11 @@ import { baseEnv, runCharmTrigger, runEffects, runTraitTrigger, runTriggered } f
 import { runHeirloomTriggers } from './heirlooms';
 import { chebyshev, compareReadingOrder, sortReadingOrder } from './geometry';
 import { addLog, pieceName } from './log';
-import {
-  clockwiseFromFirstLight,
-  endLastFlameGame,
-  passFirstLight,
-  tallyEndOfRoundChecks,
-  tallyGloamClose,
-  tallyGloamDamage,
-} from './modes/lastFlame';
+import { respawnAtTurnStart } from './modes/falls';
+import { startRoundGloam, tallyGloamClose, tallyGloamDamage } from './modes/gloam';
+import { hauntingSeats, hauntsPending, requestHaunts } from './modes/haunt';
+import { bandScope, clockwiseFromFirstLight, lastFlameOf, passFirstLight } from './modes/lastFlame';
+import { endLastFlameGame, tallyEndOfRoundChecks } from './modes/lastFlameEnd';
 import { changeDread, dawnDreadRecovery } from './modes/vigil';
 import { seatStream, streamDie, streamPick, streamShuffle, streamWeighted } from './rng';
 import { enterNightSetup, freshTurnState, plumePlacement } from './setup';
@@ -61,12 +58,14 @@ function chandleryDone(p: PlayerState): boolean {
   return p.chandlery === null || (p.chandlery.picksLeft === 0 && p.chandlery.boonDone);
 }
 
-/** Whether an `advance` is due now, and for which phase. */
+/** Whether an `advance` is due now, and for which phase. A Haunt placement owed holds it back. */
 export function pendingAutomation(s: GameState): PendingAutomation | null {
   if (s.result) return null;
   switch (s.phase) {
     case 'night_setup':
-      return seatsInPlay(s).every((p) => p.ready) ? { phase: s.phase } : null;
+      return seatsInPlay(s).every((p) => p.ready) && !hauntsPending(s) ? { phase: s.phase } : null;
+    case 'tally':
+      return hauntsPending(s) ? null : { phase: s.phase };
     case 'toll':
       return s.toll.active !== null ? { phase: s.phase } : null;
     case 'dawn':
@@ -83,14 +82,17 @@ export function pendingAutomation(s: GameState): PendingAutomation | null {
 
 /**
  * Seats allowed to act right now. In the players phase: the active seat, or (Vigil, nobody
- * active) every seat that may still claim its turn.
+ * active) every seat that may still claim its turn. Eliminated Last Flame seats owing a Haunt
+ * placement act during night_setup and the Tally.
  */
 export function activeSeats(s: GameState): number[] {
   if (s.result) return [];
   const live = seatsInPlay(s);
   switch (s.phase) {
     case 'night_setup':
-      return live.filter((p) => !p.ready).map((p) => p.seat);
+      return [...live.filter((p) => !p.ready).map((p) => p.seat), ...hauntingSeats(s)];
+    case 'tally':
+      return hauntingSeats(s);
     case 'toll':
       return s.toll.active === null && s.toll.chooser !== null ? [s.toll.chooser] : [];
     case 'players':
@@ -250,10 +252,15 @@ function startRound(ctx: Ctx): void {
   s.omen = { face: null, omenId: null };
   for (const p of pieceList(s)) {
     p.lastDisplacedBy = null;
+    delete p.lastDisplacedAt;
     p.hauntedThisRound = false;
   }
-  for (const intent of s.intents) intent.reversedBy = null;
+  for (const intent of s.intents) {
+    intent.reversedBy = null;
+    delete intent.reversedAt;
+  }
   addLog(ctx, `Round ${s.round}${s.roundsThisNight !== null ? `/${s.roundsThisNight}` : ''}.`);
+  startRoundGloam(ctx);
   setPhase(ctx, s.config.moth_die ? 'omen' : 'snuff_move');
 }
 
@@ -332,11 +339,12 @@ function readyPiece(ctx: Ctx, p: Piece): void {
   }
 }
 
-/** Seat turn start: draw to hand size, set Flame, ready the seat's pieces (§4.3). */
+/** Seat turn start: (Last Flame) a Wick respawns, draw to hand size, set Flame, ready the seat's pieces (§4.3, §13.2.6). */
 export function startSeatTurn(ctx: Ctx, seat: number): void {
   const { s, reg } = ctx;
   const player = s.players[seat];
   s.activeSeat = seat;
+  respawnAtTurnStart(ctx, seat);
   player.turn = freshTurnState(reg);
   syncTurnState(s, seat);
   drawUpTo(ctx, seat, s.config.hand_size + ruleDelta(s, 'hand_size', seat));
@@ -382,6 +390,14 @@ export function endSeatTurn(ctx: Ctx, seat: number): void {
   if (!isOver(s)) activateNextSeat(ctx);
 }
 
+/** After a player action: a seat eliminated during its own seat turn forfeits the rest of it (§13.2.6). */
+export function settleEliminatedTurn(ctx: Ctx): void {
+  const { s } = ctx;
+  const seat = s.activeSeat;
+  if (s.phase !== 'players' || seat === null || isOver(s) || !s.players[seat]?.eliminated) return;
+  endSeatTurn(ctx, seat);
+}
+
 function enterSnuffStrike(ctx: Ctx): void {
   const { s } = ctx;
   s.activeSeat = null;
@@ -412,7 +428,7 @@ function burnStep(ctx: Ctx, side: 'snuff' | 'wick'): void {
     if (isOver(ctx.s)) return;
     p.burn -= 1;
     emit(ctx, { type: 'status_changed', pieceId: p.id, status: 'burn', active: p.burn > 0, value: p.burn });
-    dealDamage(ctx, p, ctx.reg.statuses.byId.burn?.damage ?? 1, { cause: 'burn', sourceKind: 'hazard', sourceId: null, seat: p.lastDisplacedBy });
+    dealDamage(ctx, p, ctx.reg.statuses.byId.burn?.damage ?? 1, { cause: 'burn', sourceKind: 'hazard', sourceId: null, seat: p.burnSeat ?? p.lastDisplacedBy });
   }
 }
 
@@ -466,9 +482,13 @@ function plumesDueAtTally(s: GameState): boolean {
   return s.round <= s.roundsThisNight - 2;
 }
 
-function runTally(ctx: Ctx): void {
+/** Index of step 10 (Plume placement), where the Tally may pause for Haunt placements. */
+const PLUME_STEP = 9;
+
+/** The Tally steps in the fixed order of §6.9. */
+function tallySteps(ctx: Ctx): Array<() => void> {
   const { s, reg } = ctx;
-  const steps: Array<() => void> = [
+  return [
     () => tallyGloamClose(ctx),
     () => burnStep(ctx, 'snuff'),
     () => burnStep(ctx, 'wick'),
@@ -484,16 +504,38 @@ function runTally(ctx: Ctx): void {
       if (!plumesDueAtTally(s)) return;
       plumePlacement(ctx, s.round);
       runTollTrigger(ctx, 'plume_placement');
+      requestHaunts(ctx);
     },
     () => {
       if (s.config.mode === 'last_flame') passFirstLight(ctx);
     },
   ];
-  for (const step of steps) {
+}
+
+/**
+ * Run the Tally (§6.9); each step is one elimination band. When Haunt placements are owed after
+ * step 10 the Tally pauses (`lastFlame.tallyPaused`) and the next `advance` resumes at step 11.
+ */
+function runTally(ctx: Ctx): void {
+  const { s } = ctx;
+  const lf = lastFlameOf(s);
+  const first = lf?.tallyPaused ? PLUME_STEP + 1 : 0;
+  if (lf) lf.tallyPaused = false;
+  const steps = tallySteps(ctx);
+  for (let i = first; i < steps.length; i++) {
     if (isOver(s)) return;
-    step();
+    bandScope(ctx, steps[i]);
+    if (i === PLUME_STEP && lf && hauntsPending(s) && !isOver(s)) {
+      lf.tallyPaused = true;
+      return;
+    }
   }
-  if (isOver(s)) return;
+  if (!isOver(s)) finishTally(ctx);
+}
+
+/** After the last Tally step: the next round, the end of the Boss Night, or Dawn. */
+function finishTally(ctx: Ctx): void {
+  const { s } = ctx;
   expireRules(s, 'round');
   s.stats.roundsPlayed += 1;
   refreshIntentTiles(s);
@@ -502,7 +544,10 @@ function runTally(ctx: Ctx): void {
   else enterDawn(ctx);
 }
 
-/** The Boss Night's round cap was reached: Last Flame's `boss_rounds` (the Vigil Boss Night has no cap). */
+/**
+ * The Boss Night's round cap was reached: Last Flame's `boss_rounds` (the Vigil Boss Night has no
+ * cap). Tally step 9 normally ends the game first; this is the safety net.
+ */
 function endBossNight(ctx: Ctx): void {
   if (ctx.s.config.mode === 'last_flame') endLastFlameGame(ctx, 'boss_rounds');
 }
@@ -525,7 +570,8 @@ function enterDawn(ctx: Ctx): void {
   for (const player of seatsInPlay(s)) {
     const units = unitsOf(s, player.seat);
     const defaults = defaultCarryOver(s, player.seat, reg.rules.carryOverMax);
-    const noChoice = player.kind !== 'human' || units.length <= reg.rules.carryOverMax;
+    // Only a real choice waits for the seat (bots answer through `botChoice`).
+    const noChoice = units.length <= reg.rules.carryOverMax;
     player.carryOver = { defaults, chosen: noChoice ? defaults.slice() : null };
   }
 }
@@ -537,7 +583,8 @@ function runDawn(ctx: Ctx): void {
   s.intents = [];
   const candlesLit = dawnDreadRecovery(ctx);
   if (isOver(s)) return;
-  for (const hero of heroPieces(s)) if (hero.smoldering) relightHero(ctx, hero, reg.rules.dawnRelightHp, 'dawn', false);
+  // Last Flame Wicks keep smoldering: they respawn at their owner's next seat turn (§13.2.6).
+  if (s.config.mode === 'vigil') for (const hero of heroPieces(s)) if (hero.smoldering) relightHero(ctx, hero, reg.rules.dawnRelightHp, 'dawn', false);
   for (const player of seatsInPlay(s)) {
     const keep = player.carryOver?.chosen ?? player.carryOver?.defaults ?? [];
     for (const unit of unitsOf(s, player.seat)) if (!keep.includes(unit.id)) dismissUnit(ctx, unit, 'dawn');

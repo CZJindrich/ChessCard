@@ -16,7 +16,7 @@ import type { Action, ActionOf, GameEvent, GameState, StateSnapshot, Validation 
 
 const UNDOABLE: ReadonlySet<Action['type']> = new Set<Action['type']>(['move', 'strike', 'relight', 'light_shrine', 'play_card', 'use_power', 'free_action']);
 
-const COMMIT_EVENTS: ReadonlySet<GameEvent['type']> = new Set<GameEvent['type']>(['cards_drawn', 'deck_shuffled', 'plume_placed', 'night_started']);
+const COMMIT_EVENTS: ReadonlySet<GameEvent['type']> = new Set<GameEvent['type']>(['cards_drawn', 'deck_shuffled', 'plume_placed', 'night_started', 'player_eliminated']);
 
 export function isUndoable(action: Action): boolean {
   return UNDOABLE.has(action.type);

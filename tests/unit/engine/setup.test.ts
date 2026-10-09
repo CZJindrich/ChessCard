@@ -52,9 +52,10 @@ describe('createGame: Vigil', () => {
       expect(enemies).toHaveLength(Math.max(1, seatCount + 1 + s.config.initial_enemies_mod));
       expect(s.plumes).toHaveLength(Math.max(1, 1 + Math.floor(seatCount / 2) + s.config.plumes_mod));
       expect(s.vigil).toMatchObject({ dread: s.config.starting_dread, dreadMax: s.config.dread_max });
-      expect(s.players.map((p) => p.ready)).toEqual(kinds.map((k) => k !== 'human'));
+      // Every seat readies itself (bots deploy and Ready through botChoice).
+      expect(s.players.map((p) => p.ready)).toEqual(kinds.map(() => false));
       expect(s.nightSnapshot).not.toBeNull();
-      expect(activeSeats(s)).toEqual([0]);
+      expect(activeSeats(s)).toEqual(kinds.map((_, i) => i));
       expect(pendingAutomation(s)).toBeNull();
     });
   }

@@ -142,7 +142,7 @@ describe('CHECKMATE (§10.3)', () => {
     heroPiece(s, 1).pos = sq('c2');
     const ctx = makeCtx(s);
     bossPlayersPhaseEnd(ctx);
-    const damage = Math.ceil(((18 + 24) * 15) / 100);
+    const damage = Math.ceil(((s.boss?.maxHp ?? 0) * 15) / 100);
     expect(eventsOf(ctx.events, 'checkmate')[0]).toMatchObject({ damage, shares: [{ seat: 0, amount: damage / 2 }, { seat: 1, amount: damage / 2 }] });
     expect(s.boss?.damageBySeat).toEqual([damage / 2, damage / 2]);
   });

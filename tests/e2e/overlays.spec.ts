@@ -1,7 +1,7 @@
 /**
- * The game's big moments end to end, with no console errors: the Chandlery after Night 1, the
- * Boss Night's intro, Dawn Breaks after the boss falls, and The Long Night Falls with Retry this
- * Night. Long stretches (the rest of a Night) are skipped by loading a crafted state through
+ * The game's big moments end to end, with no console errors: the Chandlery after Night 1 and
+ * The Long Night Falls with Retry this Night (the Boss Night has its own spec, boss.spec.ts).
+ * Long stretches (the rest of a Night) are skipped by loading a crafted state through
  * `window.__ww`; every decision on screen is a real click.
  */
 import { expect, test, type Page } from '@playwright/test';
@@ -99,76 +99,23 @@ test('the Chandlery after Night 1: summary, draft, Boon, then Night 2', async ({
   expect(problems, problems.join('\n')).toEqual([]);
 });
 
-test('the Boss Night: the intro, then Dawn Breaks when the boss falls', async ({ page }) => {
-  const problems = watchErrors(page);
-  await seedStorage(page);
-  await startQuickPlay(page);
-  await ready(page);
-  await finishNight(page, "st.night = st.config.nights - 1; st.config = { ...st.config, boss_choice: 'hush_hierophant' };");
-  await page.getByRole('button', { name: /Skip the draft/ }).click();
-  await page.getByRole('button', { name: 'No Boon' }).click();
-  await waitFor(page, 'night_setup');
-  await expect(page.getByTestId('night-title')).toBeHidden({ timeout: 5_000 });
-  await page.getByTestId('ready').click();
-
-  const intro = page.getByTestId('boss-intro');
-  await expect(intro).toBeVisible({ timeout: 20_000 });
-  await expect(intro).toContainText('Hush Hierophant');
-  await expect(intro).toContainText('The Bell That Swallows Song');
-  await expect(intro).toContainText('Weakness:');
-  await page.keyboard.press(' ');
-  await expect(intro).toBeHidden();
-  await waitFor(page, 'players');
-
-  // The boss at 1 HP with Brannoc beside it: strike it down.
-  await craft(
-    page,
-    `const b = st.pieces[st.boss.pieceId]; b.hp = 1; const h = st.pieces[st.players[0].heroPieceId];
-     const taken = new Set(Object.values(st.pieces).filter((p) => p.id !== h.id).flatMap((p) => { const o = []; for (let dx = 0; dx < p.size; dx++) for (let dy = 0; dy < p.size; dy++) o.push((p.pos.x + dx) + ',' + (p.pos.y + dy)); return o; }));
-     const spots = [[b.pos.x, b.pos.y - 1], [b.pos.x + 1, b.pos.y - 1], [b.pos.x - 1, b.pos.y], [b.pos.x + 2, b.pos.y]];
-     const free = spots.find(([x, y]) => x >= 0 && y >= 0 && !taken.has(x + ',' + y) && st.board.tiles[y * st.board.w + x].type !== 'pillar');
-     h.pos = { x: free[0], y: free[1] }; h.movesLeft = 1; h.strikesLeft = 1;`,
-  );
-  const target = await page.evaluate(() => {
-    const ww = window.__ww;
-    const s = ww?.controller.getSnapshot();
-    const heroId = s?.latest.players[0].heroPieceId ?? '';
-    return { hero: s?.latest.pieces[heroId].pos, strike: ww?.controller.highlightsFor(heroId)?.strikes[0]?.pos };
-  });
-  if (!target.hero || !target.strike) throw new Error('no strike on the boss');
-  for (const pos of [target.hero, target.strike]) {
-    const box = await page.getByTestId('board-input').boundingBox();
-    const tile = Number(await page.locator('.ww-gameboard').getAttribute('data-tile'));
-    if (!box) throw new Error('board not laid out');
-    const rows = Math.round(box.height / tile);
-    await page.mouse.click(box.x + pos.x * tile + tile / 2, box.y + (rows - 1 - pos.y) * tile + tile / 2);
-  }
-  const over = page.getByTestId('game-over');
-  await expect(over).toBeVisible({ timeout: 30_000 });
-  await expect(over).toHaveAttribute('data-outcome', 'victory');
-  await expect(over.getByText('Dawn Breaks')).toBeVisible();
-  for (const label of ['Play Again', 'Same Seed', 'Change Hero', 'Main Menu']) await expect(over.getByRole('button', { name: new RegExp(label) })).toBeVisible();
-  expect(problems, problems.join('\n')).toEqual([]);
-});
-
 test('The Long Night Falls, and Retry this Night brings the Night back', async ({ page }) => {
   const problems = watchErrors(page);
   await seedStorage(page);
   await startQuickPlay(page);
   await ready(page);
-  // One Dread short of the end, with a Snuff about to hit a Candle.
+  // The engine's own defeat (the boss's toll) is in boss.spec.ts; here the defeat is loaded as
+  // it lands (Dread full, the cause recorded), so the screen and Retry are tested on any seed.
   await craft(
     page,
-    `st.vigil.dread = st.vigil.dreadMax - 1; const candle = Object.values(st.pieces).find((p) => p.kind === 'candle');
-     const snuff = Object.values(st.pieces).find((p) => p.side === 'snuff');
-     const intent = st.intents.find((i) => i.attackerId === snuff.id);
-     if (!st.intents.some((i) => i.tiles.some((t) => t.x === candle.pos.x && t.y === candle.pos.y)) && intent) { intent.tiles = [{ ...candle.pos }]; }`,
+    `st.vigil.dread = st.vigil.dreadMax; st.phase = 'game_over';
+     st.result = { mode: 'vigil', outcome: 'defeat', stars: 0, cause: 'The c3 Vigil Candle was snuffed.', finalDread: st.vigil.dreadMax, retries: 0 };`,
   );
-  await page.getByTestId('end-turn').click();
   const over = page.getByTestId('game-over');
-  await expect(over).toBeVisible({ timeout: 60_000 });
+  await expect(over).toBeVisible({ timeout: 30_000 });
   await expect(over).toHaveAttribute('data-outcome', 'defeat');
   await expect(over.getByText('The Long Night Falls')).toBeVisible({ timeout: 10_000 });
+  await expect(over.getByText('The c3 Vigil Candle was snuffed.')).toBeVisible();
   await over.getByTestId('retry-night').click();
   await expect(over).toBeHidden();
   await waitFor(page, 'night_setup');

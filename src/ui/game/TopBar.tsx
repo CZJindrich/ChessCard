@@ -5,12 +5,12 @@
  */
 import type { ReactElement } from 'react';
 import { BossHpBar, GloamBellIcon, HourCandle, MothDie, MothDieFaceIcon, MOTH_DIE_LABELS, PealBellIcon, mothDieFace } from '../../art';
-import { dreadThresholdValues } from '../../engine';
+import { dreadThresholdValues, roundsToNextClosing } from '../../engine';
 import type { GameState } from '../../engine/types';
 import { usePresentation, useServices } from '../app/services';
 import { Tooltip } from '../components/Tooltip';
 import { UiIcon } from '../components/icons';
-import { useGameSnapshot, useRegistry } from './context';
+import { useGameSelector, useRegistry } from './context';
 import { BEATS, beatIndex, nightLabel, roundLabel, siteName } from './model';
 import { useGameUi } from './uiStore';
 import { useCueMoment } from './useCue';
@@ -74,15 +74,51 @@ function DreadMeter({ state }: { state: GameState }): ReactElement | null {
   );
 }
 
+function gloamText(rounds: number | null, size: number): string {
+  if (rounds === null) return 'The Gloam has closed in on the final ring.';
+  const when = rounds === 0 ? 'at the end of this round' : `in ${rounds} round${rounds === 1 ? '' : 's'}`;
+  return `The Gloam Bell: the smoke ring closes ${when}. The open board is ${size}×${size} now. Wickfolk ending a Tally in the Gloam take 2.`;
+}
+
+/** The Gloam Bell (§13.2.8): rounds until the ring closes; it rings red in the closing round. */
 function GloamBell({ state }: { state: GameState }): ReactElement | null {
   const lf = state.lastFlame;
   if (!lf) return null;
-  const next = lf.gloam.schedule[lf.gloam.closingsDone];
-  const rounds = next ? Math.max(0, (next.night - state.night) * state.config.turns_per_night + next.round - state.round) : undefined;
+  const rounds = roundsToNextClosing(state);
+  const done = lf.gloam.schedule[lf.gloam.closingsDone - 1];
+  const size = done ? done.openSize : state.board.w;
+  const closing = rounds === 0;
   return (
-    <Tooltip content={next ? `The Gloam closes in ${rounds} round${rounds === 1 ? '' : 's'}.` : 'The Gloam has closed.'}>
-      <span className="ww-topbar__chip">
-        <GloamBellIcon rounds={rounds} size={26} />
+    <Tooltip content={gloamText(rounds, size)}>
+      <span className={`ww-topbar__chip ww-gloam-bell${closing ? ' ww-gloam-bell--closing' : ''}`} data-testid="gloam-bell" aria-label={gloamText(rounds, size)}>
+        <GloamBellIcon rounds={rounds ?? undefined} size={26} />
+        <span className="ww-gloam-bell__label">{rounds === null ? 'Closed' : closing ? 'Closes now' : `${rounds} to close`}</span>
+      </span>
+    </Tooltip>
+  );
+}
+
+/** A lowered sword wrapped in a ribbon: no fighting rivals. */
+function TruceIcon(): ReactElement {
+  return (
+    <svg className="ww-truce-chip__mark" viewBox="0 0 20 20" aria-hidden="true">
+      <path d="M10 2.5V14.5" stroke="#E6D9B8" strokeWidth="1.8" strokeLinecap="round" />
+      <path d="M6.5 5.5H13.5" stroke="#B8913A" strokeWidth="1.8" strokeLinecap="round" />
+      <path d="M10 14.5L8.6 17.5H11.4Z" fill="#E6D9B8" />
+      <path d="M5 10.5C7.5 8.5 12.5 12.5 15 10.5" fill="none" stroke="#9FD8E8" strokeWidth="1.6" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+/** Truce (§13.2.3): while it holds, rival pieces can't be targeted, damaged or pushed. */
+function TruceSlot({ state }: { state: GameState }): ReactElement | null {
+  if (!state.lastFlame?.truce) return null;
+  const text = 'Truce tonight: rival pieces cannot be targeted, damaged, pushed, pulled, swapped, Dazed or Burned. Area effects skip them.';
+  return (
+    <Tooltip content={text}>
+      <span className="ww-topbar__chip ww-truce-chip" data-testid="truce" aria-label={text}>
+        <TruceIcon />
+        Truce
       </span>
     </Tooltip>
   );
@@ -161,7 +197,7 @@ function BossBar({ state }: { state: GameState }): ReactElement | null {
 }
 
 export function TopBar(): ReactElement {
-  const { state } = useGameSnapshot();
+  const state = useGameSelector((snap) => snap.state, Object.is);
   const registry = useRegistry();
   const services = useServices();
   const ui = useGameUi();
@@ -180,6 +216,7 @@ export function TopBar(): ReactElement {
         <OmenSlot state={state} />
         <TollSlot state={state} />
         <PealSlot state={state} />
+        <TruceSlot state={state} />
         {state.config.mode === 'vigil' ? <DreadMeter state={state} /> : <GloamBell state={state} />}
       </div>
       <div className="ww-topbar__menu">

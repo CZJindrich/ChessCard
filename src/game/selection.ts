@@ -21,7 +21,7 @@ export interface PowerSelection {
 export type NoticeAnchor =
   | { kind: 'card'; uid: string }
   | { kind: 'piece'; id: string }
-  | { kind: 'control'; id: 'end_turn' | 'undo' | 'hint' | 'power' | 'claim' | 'ready' }
+  | { kind: 'control'; id: 'end_turn' | 'undo' | 'hint' | 'power' | 'claim' | 'ready' | 'haunt' | 'retry' }
   | { kind: 'board' };
 
 export interface UiNotice {
@@ -37,6 +37,8 @@ export interface Selection {
   card: CardSelection | null;
   power: PowerSelection | null;
   hover: Pos | null;
+  /** The hovered tile is the keyboard cursor (arrow keys, §15.7), not the pointer. */
+  keyCursor: boolean;
   /** Right-rail queue entry under the pointer. */
   hoverIntentId: string | null;
   /** Enemy (or any piece) pinned for inspection (click / long-press). */
@@ -54,6 +56,7 @@ export const EMPTY_SELECTION: Selection = Object.freeze({
   card: null,
   power: null,
   hover: null,
+  keyCursor: false,
   hoverIntentId: null,
   inspectId: null,
   showIntents: true,

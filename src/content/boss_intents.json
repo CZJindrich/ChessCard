@@ -101,10 +101,10 @@
     "damage": 3,
     "artillery": true,
     "reversible": true,
-    "extra": { "op": "custom", "id": "devour_light", "heal": 3 },
+    "extra": { "op": "custom", "id": "devour_light", "heal": 2 },
     "targeting": "brightest_light",
     "heavy": true,
-    "text": "Bites the brightest light within 6 for 3. If it puts out a light or fells a piece, she heals 3."
+    "text": "Bites the brightest light within 6 for 3. If it puts out a light or fells a piece, she heals 2."
   },
   {
     "id": "dust_storm",

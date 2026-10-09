@@ -18,7 +18,7 @@ const VH = 900;
 const CANDLE: Pt = { x: 372, y: 548 };
 
 const FAR: SkylineOptions = { width: VW, baseline: 700, minHeight: 110, maxHeight: 250, unit: 64, seed: 'title-far', litChance: 0.12 };
-const MID: SkylineOptions = { width: VW, baseline: 790, minHeight: 140, maxHeight: 320, unit: 92, seed: 'title-mid', litChance: 0.28, cathedralX: 860 };
+const MID: SkylineOptions = { width: VW, baseline: 790, minHeight: 140, maxHeight: 320, unit: 92, seed: 'title-mid', litChance: 0.28, cathedralX: 1250 };
 const NEAR: SkylineOptions = { width: VW, baseline: 910, minHeight: 90, maxHeight: 210, unit: 150, seed: 'title-near', litChance: 0.18 };
 
 interface Tendril {

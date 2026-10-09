@@ -115,7 +115,8 @@ export function SkylineSvgLayer({
       <path d={layer.d} fill={fill} />
       {layer.rose && (
         <g>
-          <circle cx={layer.rose.x} cy={layer.rose.y} r={layer.rose.r} fill={mix(windowColor, fill, 0.35)} opacity={0.75} />
+          {/* A dim stained-glass glow: bright gold read as a UI button over menus and panels. */}
+          <circle cx={layer.rose.x} cy={layer.rose.y} r={layer.rose.r} fill={mix(windowColor, fill, 0.72)} opacity={0.55} />
           <circle cx={layer.rose.x} cy={layer.rose.y} r={layer.rose.r * 0.45} fill="none" stroke={fill} strokeWidth={layer.rose.r * 0.12} />
           {Array.from({ length: 8 }, (_, i) => {
             const a = (i / 8) * Math.PI * 2;

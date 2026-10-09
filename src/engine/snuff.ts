@@ -40,6 +40,7 @@ import {
 } from './geometry';
 import type { BoardQuery } from './geometry';
 import { addLog, pieceAtText, pieceName, squarePieceText } from './log';
+import { bandScope, creditTick } from './modes/lastFlame';
 import { streamPick, streamWeighted } from './rng';
 import { spawnEnemy } from './spawn';
 import { boardQuery, emit, heroPieces, isOver, isWickfolk, newId, nextOrder, pieceAt, pieceList, plumeAt, ruleDelta, ruleValue, tileAt } from './state';
@@ -224,6 +225,9 @@ export function reverseIntent(ctx: Ctx, p: Piece, seat: number | null): void {
     if (intent.attackerId !== p.id || intent.centered || intent.kind === 'global') continue;
     intent.reversed = !intent.reversed;
     intent.reversedBy = seat;
+    const at = seat !== null ? creditTick(ctx.s) : 0;
+    if (at > 0) intent.reversedAt = at;
+    else delete intent.reversedAt;
     intent.tiles = intentHits(ctx.s, intent).tiles;
     if (seat !== null) emit(ctx, { type: 'intent_reversed', intentId: intent.id, tiles: intent.tiles, seat });
     addLog(ctx, `${pieceAtText(ctx.reg, p)} turns its attack around.`, seat ?? undefined);
@@ -374,7 +378,14 @@ interface TargetChoice {
   node: ReachNode | null;
 }
 
-/** §12.1 ordering: (clusters) → lethal → path distance → lowest HP → reading order. */
+/** Last Flame tie-break (§12.1 step 5): the Glory of the target's owner (0 for Vigil, Shrines and Snuff). */
+function ownerGlory(s: GameState, target: SnuffTarget): number {
+  const owner = target.piece?.owner;
+  if (s.config.mode !== 'last_flame' || owner === null || owner === undefined) return 0;
+  return s.players[owner]?.glory ?? 0;
+}
+
+/** §12.1 ordering: (clusters) → lethal → path distance → lowest HP → (Last Flame) highest owner Glory → reading order. */
 function chooseTarget(ctx: Ctx, enemy: Piece, def: EnemyDef, nodes: ReachNode[], q: BoardQuery): TargetChoice | null {
   const candidates = candidateTargets(ctx.s, def);
   if (candidates.length === 0) return null;
@@ -393,6 +404,7 @@ function chooseTarget(ctx: Ctx, enemy: Piece, def: EnemyDef, nodes: ReachNode[],
     lethal: isLethal(target, damage),
     cluster: def.ai.prefers === 'clusters' ? clusterValue(ctx.s, target, def.attack.area) : 0,
     hp: target.piece?.hp ?? 1,
+    glory: ownerGlory(ctx.s, target),
   }));
   scored.sort(
     (a, b) =>
@@ -401,6 +413,7 @@ function chooseTarget(ctx: Ctx, enemy: Piece, def: EnemyDef, nodes: ReachNode[],
       (a.node?.cost ?? Infinity) - (b.node?.cost ?? Infinity) ||
       (a.node?.moves ?? Infinity) - (b.node?.moves ?? Infinity) ||
       a.hp - b.hp ||
+      b.glory - a.glory ||
       compareReadingOrder(a.target.pos, b.target.pos),
   );
   return { target: scored[0].target, node: scored[0].node };
@@ -593,9 +606,23 @@ export function numberIntents(ctx: Ctx): void {
 // Snuff Strike (§6.8)
 // =============================================================================================
 
-/** Kill credit for a Snuff hit (§6.3): who displaced the victim or attacker, or reversed the intent. */
+/**
+ * Kill credit for a Snuff hit (§6.3): the last player who displaced the victim or the attacker
+ * this round, or reversed the intent. Last Flame orders them by the credit clock; without clock
+ * readings (Vigil) the victim's displacer comes first, then the attacker's, then the reverser.
+ */
 export function snuffCredit(victim: Piece, attacker: Piece, intent: Intent): number | null {
-  return victim.lastDisplacedBy ?? attacker.lastDisplacedBy ?? intent.reversedBy ?? null;
+  const marks = [
+    { seat: victim.lastDisplacedBy, at: victim.lastDisplacedAt ?? 0 },
+    { seat: attacker.lastDisplacedBy, at: attacker.lastDisplacedAt ?? 0 },
+    { seat: intent.reversedBy, at: intent.reversedAt ?? 0 },
+  ];
+  let best: { seat: number; at: number } | null = null;
+  for (const mark of marks) {
+    if (mark.seat === null) continue;
+    if (!best || mark.at > best.at) best = { seat: mark.seat, at: mark.at };
+  }
+  return best?.seat ?? null;
 }
 
 function resolveIntent(ctx: Ctx, intent: Intent): void {
@@ -646,16 +673,19 @@ function resolveIntent(ctx: Ctx, intent: Intent): void {
   emit(ctx, { type: 'intent_resolved', intentId: intent.id, tiles: hit.tiles });
 }
 
-/** Resolve every intent in queue order; each finishes before the next starts. */
+/**
+ * Resolve every intent in queue order; each finishes before the next starts (its tiles are
+ * recomputed from the attacker's position at that moment). The cached display tiles of the
+ * intents still queued are not refreshed in between: the queue is empty when this returns.
+ */
 export function resolveSnuffStrike(ctx: Ctx): void {
   const { s } = ctx;
   for (const id of s.intents.map((i) => i.id)) {
     if (isOver(s)) break;
     const intent = s.intents.find((i) => i.id === id);
     if (!intent) continue;
-    resolveIntent(ctx, intent);
+    bandScope(ctx, () => resolveIntent(ctx, intent));
     s.intents = s.intents.filter((i) => i.id !== id);
-    refreshIntentTiles(s);
   }
   s.intents = [];
 }

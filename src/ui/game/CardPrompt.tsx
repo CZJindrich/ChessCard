@@ -3,7 +3,7 @@
  * pick next, "choose one" modes, Play (board-wide cards), Skip (optional picks) and Cancel.
  */
 import type { ReactElement } from 'react';
-import { modeChoices, needsMode, reasonLine } from '../../game';
+import { canSkipRest, modeChoices, needsMode, reasonLine } from '../../game';
 import { useController, useGameSnapshot, useRegistry } from './context';
 
 export function CardPrompt(): ReactElement | null {
@@ -22,7 +22,7 @@ export function CardPrompt(): ReactElement | null {
   const picks = card?.picks.length ?? power?.picks.length ?? 0;
   const choosingMode = card !== null && needsMode(info, card);
   const boardWide = info.steps === 0;
-  const canSkip = picks > 0 && (info.complete === true || info.optional);
+  const canSkip = canSkipRest(info, card?.picks ?? power?.picks ?? []);
   let text: string;
   if (choosingMode) text = 'Choose one:';
   else if (boardWide) text = def?.text ?? powerDef?.text ?? '';

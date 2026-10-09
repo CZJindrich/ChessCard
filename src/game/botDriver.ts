@@ -28,6 +28,16 @@ interface BotPlan {
   actions: Action[];
 }
 
+/**
+ * Seats that owe a decision outside a seat turn: the engine's active seats, plus eliminated Last
+ * Flame players placing a Haunt Plume (§13.2.7).
+ */
+export function decisionSeats(state: GameState): number[] {
+  const seats = activeSeats(state);
+  for (const p of state.players) if (p.haunt.pending && !seats.includes(p.seat)) seats.push(p.seat);
+  return seats;
+}
+
 export function isBotSeat(state: GameState, seat: number): boolean {
   const player = state.players[seat];
   return player !== undefined && player.kind !== 'human';
@@ -57,7 +67,7 @@ export class BotDriver {
       if (s.activeSeat !== null && isBotSeat(s, s.activeSeat)) this.driveTurn(s.activeSeat);
       return;
     }
-    const seat = activeSeats(s).find((q) => isBotSeat(s, q));
+    const seat = decisionSeats(s).find((q) => isBotSeat(s, q));
     if (seat !== undefined) this.requestChoice(seat);
   }
 

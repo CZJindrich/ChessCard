@@ -1601,6 +1601,18 @@
   animation: ww-intro-in 260ms ease both;
 }
 
+/* A coach mark whose anchor can't be measured (hidden, off screen) sits above the hand. */
+.ww-coach--unanchored {
+  left: 50%;
+  bottom: calc(var(--ww-bottom-h) + 1rem);
+  width: 19rem;
+  translate: -50% 0;
+}
+
+.ww-coach--unanchored::after {
+  display: none;
+}
+
 .ww-coach::after {
   content: '';
   position: absolute;

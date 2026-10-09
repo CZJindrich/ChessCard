@@ -8,6 +8,7 @@ import {
   activeSeats,
   cardTargets,
   freeActionTargets,
+  hauntOptions,
   legalMoves,
   legalStrikes,
   pendingAutomation,
@@ -171,9 +172,16 @@ function boonAction(r: Rand, s: GameState, seat: number): Action {
   return r.pick(options.filter((a) => validateAction(s, a).ok)) ?? options[0];
 }
 
-/** A random legal choice for a seat outside its turn (deploy/ready, Toll, carry-over, Chandlery). */
+/** A random Haunt: one of the legal tiles, or a skip now and then. */
+function hauntAction(r: Rand, s: GameState, seat: number): Action | null {
+  const option = r.chance(0.2) ? undefined : r.pick(hauntOptions(s, seat));
+  return legal(s, { type: 'haunt', seat, at: option ? option.pos : null });
+}
+
+/** A random legal choice for a seat outside its turn (deploy/ready, Toll, carry-over, Chandlery, Haunt). */
 function choiceAction(r: Rand, s: GameState, seat: number): Action | null {
   const player = s.players[seat];
+  if (player.haunt.pending) return hauntAction(r, s, seat);
   switch (s.phase) {
     case 'night_setup': {
       const own = r.pick(Object.values(s.pieces).filter((p) => p.owner === seat));

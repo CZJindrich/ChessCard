@@ -140,6 +140,58 @@
 
 /* ---------------------------------------------------------------------------- marks */
 
+/* The Gloam: still fog, and the warning band pulsing as one composited element. */
+.ww-gloam-layer,
+.ww-gloam-warning-layer {
+  position: absolute;
+  pointer-events: none;
+}
+
+.ww-gloam-warning-layer {
+  will-change: opacity;
+  animation: ww-gloam-band-pulse 1.4s ease-in-out infinite alternate;
+}
+
+@keyframes ww-gloam-band-pulse {
+  from {
+    opacity: 0.45;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Plumes: one small composited SVG each, so their smoke repaints only its tile. */
+.ww-plumes {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.ww-plume-slot {
+  position: absolute;
+  left: 0;
+  top: 0;
+  overflow: visible;
+  will-change: transform;
+}
+
+/* The intent layer pulses as a whole: an opacity animation the compositor runs. */
+.ww-marks--intents {
+  will-change: opacity;
+  animation: ww-intent-layer-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes ww-intent-layer-pulse {
+  0%,
+  100% {
+    opacity: 0.86;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
 .ww-intent-cell {
   transform-box: fill-box;
   transform-origin: 50% 50%;
@@ -609,6 +661,8 @@
 
 .ww-reduced-motion .ww-fx-ghost--melt::after,
 .ww-reduced-motion .ww-intent-cell,
+.ww-reduced-motion .ww-marks--intents,
+.ww-reduced-motion .ww-gloam-warning-layer,
 .ww-reduced-motion .ww-target-glow,
 .ww-reduced-motion .ww-hint-mark,
 .ww-reduced-motion .ww-end-preview-tile,

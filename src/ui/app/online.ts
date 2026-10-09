@@ -8,7 +8,10 @@
 import { customSelection } from '../../config';
 import type { ConfigSelection, KeyValueStorage } from '../../config';
 import type { GameConfig } from '../../engine/types';
-import { errorText, OnlineSession, type SessionOptions, type SessionState } from '../../net';
+// The session and protocol modules, not the src/net barrel: the barrel also exports the game's
+// NetTransport, which would pull the whole engine into the entry chunk (see app/lazyScreens.ts).
+import { errorText } from '../../net/protocol';
+import { OnlineSession, type SessionOptions, type SessionState } from '../../net/session';
 import type { GameRoute, Navigator, Route } from './navigation';
 import type { ToastStore } from './toasts';
 

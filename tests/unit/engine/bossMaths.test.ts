@@ -18,8 +18,9 @@ function expectedHp(base: number, perPlayer: number, players: number, multiplier
 }
 
 describe('boss HP (§10.1)', () => {
-  it('the GDD example: the Guttered King, solo, midnight = (18 + 12) × 1.15 = 34.5 → 35', () => {
-    expect(bossMaxHp(reg.bosses.byId.guttered_king, 1, 1.15)).toBe(35);
+  it('the GDD formula example: (18 + 12) × 1.15 = 34.5 → 35 (half rounds up)', () => {
+    const king = { ...reg.bosses.byId.guttered_king, hp: { base: 18, perPlayer: 12 } };
+    expect(bossMaxHp(king, 1, 1.15)).toBe(35);
   });
 
   for (const bossId of BOSSES) {
@@ -50,7 +51,7 @@ describe('boss HP (§10.1)', () => {
     const def = reg.bosses.byId.nocturna;
     for (let hundredths = 50; hundredths <= 200; hundredths += 5) {
       for (let players = 1; players <= 4; players++) {
-        expect(bossMaxHp(def, players, hundredths / 100)).toBe(expectedHp(16, 11, players, hundredths));
+        expect(bossMaxHp(def, players, hundredths / 100)).toBe(expectedHp(def.hp.base, def.hp.perPlayer, players, hundredths));
       }
     }
   });
@@ -60,13 +61,15 @@ describe('a Boss Night spawns the boss with P from the seats', () => {
   for (const players of [1, 2, 3, 4]) {
     it(`Vigil, ${players} seat(s), midnight`, () => {
       const s = bossNight({ boss: 'guttered_king', seats: players, overrides: { difficulty: 'midnight', boss_hp_multiplier: 1.15 } });
-      expect(s.boss).toMatchObject({ id: 'guttered_king', phase: 1, crowns: 0, players, maxHp: expectedHp(18, 12, players, 115) });
+      const { base, perPlayer } = reg.bosses.byId.guttered_king.hp;
+      expect(s.boss).toMatchObject({ id: 'guttered_king', phase: 1, crowns: 0, players, maxHp: expectedHp(base, perPlayer, players, 115) });
       expect(s.pieces[s.boss?.pieceId ?? '']).toMatchObject({ kind: 'boss', size: 2, hp: s.boss?.maxHp });
     });
   }
 
   it('Last Flame: P = heroes not eliminated at the start of the Boss Night (minimum 1)', () => {
     const s = bossNight({ boss: 'nocturna', seats: 3, mode: 'last_flame', overrides: { boss_hp_multiplier: 1 } });
-    expect(s.boss).toMatchObject({ players: 3, maxHp: 16 + 11 * 3 });
+    const { base, perPlayer } = reg.bosses.byId.nocturna.hp;
+    expect(s.boss).toMatchObject({ players: 3, maxHp: base + perPlayer * 3 });
   });
 });

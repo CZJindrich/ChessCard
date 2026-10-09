@@ -110,6 +110,8 @@ describe('targeting steps', () => {
     expect(picksComplete(info({ steps: 2 }), [{ kind: 'tile', pos: { x: 0, y: 0 } }, { kind: 'tile', pos: { x: 1, y: 0 } }])).toBe(true);
     expect(canSkipRest(info({ steps: 2, complete: true }), [{ kind: 'tile', pos: { x: 0, y: 0 } }])).toBe(true);
     expect(canSkipRest(info({ steps: 2 }), [])).toBe(false);
+    // An optional pick with valid choices left must still be made (E2: only `complete` allows Skip).
+    expect(canSkipRest(info({ steps: 2, step: 1, optional: true, complete: false }), [{ kind: 'tile', pos: { x: 0, y: 0 } }])).toBe(false);
   });
 });
 

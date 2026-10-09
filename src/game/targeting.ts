@@ -47,9 +47,13 @@ export function picksComplete(info: CardTargetInfo, picks: readonly CardTargetCh
   return info.complete === true && info.targets.length === 0;
 }
 
-/** The picks so far are playable and only optional picks remain (offer "Skip"). */
+/**
+ * The picks so far are playable as they are (offer "Skip"). Only the engine's `complete` says
+ * so: an optional pick may be left out only when it has no valid choice (Sunshield Charge must
+ * hit an adjacent enemy if there is one), so `optional` alone is not enough.
+ */
 export function canSkipRest(info: CardTargetInfo, picks: readonly CardTargetChoice[]): boolean {
-  return picks.length > 0 && (info.complete === true || info.optional);
+  return picks.length > 0 && info.complete === true;
 }
 
 export function sameChoice(a: CardTargetChoice, b: CardTargetChoice): boolean {

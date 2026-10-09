@@ -236,8 +236,8 @@ function onKill(ctx: Ctx, striker: Piece, victim: Piece): void {
 function onHit(ctx: Ctx, striker: Piece, victim: Piece, attack: AttackDef): void {
   const { s } = ctx;
   if (attack.status === 'dazed') applyDaze(ctx, victim);
-  if (attack.status === 'burn') applyBurn(ctx, victim);
-  if (striker.kind === 'hero' && striker.owner !== null && ruleValue(s, 'hero_strike_burn', striker.owner) === true) applyBurn(ctx, victim);
+  if (attack.status === 'burn') applyBurn(ctx, victim, striker.owner);
+  if (striker.kind === 'hero' && striker.owner !== null && ruleValue(s, 'hero_strike_burn', striker.owner) === true) applyBurn(ctx, victim, striker.owner);
   if (attack.push > 0 && alive(s, victim)) {
     pushPiece(ctx, victim, pushDirection(striker.pos, striker.size, victim.pos), attack.push, {
       displacer: striker.owner,

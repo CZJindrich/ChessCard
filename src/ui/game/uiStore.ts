@@ -20,6 +20,8 @@ export interface GameUiState {
   overlay: GameOverlay | null;
   zoom: BoardZoom;
   pings: readonly Ping[];
+  /** Last Flame: the right-rail drawer (intent queue and log) is open (§15.4). */
+  drawer: boolean;
 }
 
 export const PING_MS = 2400;
@@ -31,6 +33,8 @@ export interface GameUi {
   open(overlay: GameOverlay): void;
   close(): void;
   toggle(overlay: GameOverlay): void;
+  /** Open or close the Last Flame right-rail drawer (no argument: toggle). */
+  setDrawer(open?: boolean): void;
   /** Board size (CSS px, unzoomed) the zoom is clamped to; the board reports it. */
   setBoardSize(width: number, height: number): void;
   /** Zoom by a factor about a point given in px from the unzoomed board's centre. */
@@ -42,7 +46,7 @@ export interface GameUi {
 }
 
 export function createGameUi(schedule: (fn: () => void, ms: number) => unknown = (fn, ms) => window.setTimeout(fn, ms)): GameUi {
-  const store = createStore<GameUiState>({ overlay: null, zoom: NO_ZOOM, pings: [] });
+  const store = createStore<GameUiState>({ overlay: null, zoom: NO_ZOOM, pings: [], drawer: false });
   let size = { w: 0, h: 0 };
   let nextPing = 1;
   let disposed = false;
@@ -55,6 +59,10 @@ export function createGameUi(schedule: (fn: () => void, ms: number) => unknown =
     open: (overlay) => store.update((s) => (s.overlay === overlay ? s : { ...s, overlay })),
     close: () => store.update((s) => (s.overlay === null ? s : { ...s, overlay: null })),
     toggle: (overlay) => store.update((s) => ({ ...s, overlay: s.overlay === overlay ? null : overlay })),
+    setDrawer: (open) => store.update((s) => {
+      const next = open ?? !s.drawer;
+      return next === s.drawer ? s : { ...s, drawer: next };
+    }),
     setBoardSize(width, height) {
       size = { w: width, h: height };
       setZoom(clampZoom(store.get().zoom, width, height));

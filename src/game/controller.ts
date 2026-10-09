@@ -8,10 +8,11 @@
  * - runs bot seats through a `BotRunner` (Web Worker, sync fallback), one action at a time;
  * - owns the UI selection model (piece, card / power picks, hover, hint, notices).
  */
-import { activeSeats, getContent, pendingAutomation, reasonText } from '../engine';
+import { getContent, hauntOptions, pendingAutomation, reasonText } from '../engine';
+import type { HauntOption } from '../engine';
 import type { Action, CardTargetChoice, CardTargetInfo, ContentRegistry, GameEvent, GameState, Piece, Pos, ReasonCode, ReasonParams } from '../engine/types';
 import type { MusicMood, PlayOptions, SfxName } from '../audio';
-import { BotDriver, isBotSeat, type BotHost } from './botDriver';
+import { BotDriver, decisionSeats, isBotSeat, type BotHost } from './botDriver';
 import { createBotRunner, type BotRunner } from './bots';
 import { hasRemainingActions, pieceHighlights, pieceIsReady, readyPieces, type PieceHighlights } from './highlights';
 import { clearChoices, EMPTY_SELECTION, samePosOrNull, type NoticeAnchor, type Selection, type UiNotice } from './selection';
@@ -85,6 +86,20 @@ export interface ControllerSnapshot {
 
 export type EndTurnOutcome = 'ended' | 'confirm' | 'blocked';
 
+/** An update as it arrives from the transport, with the state it replaced. */
+export interface AppliedUpdate {
+  action: Action | null;
+  before: GameState;
+  after: GameState;
+  events: readonly GameEvent[];
+}
+
+/**
+ * A veto on the local player's actions (the tutorial's coached line): return null to allow,
+ * or the text shown instead of sending the action.
+ */
+export type ActionGuard = (action: Action, state: GameState) => string | null;
+
 type QueueItem = { kind: 'event'; event: GameEvent; pace: Pace; after: GameState } | { kind: 'end'; after: GameState };
 
 const NOTICE_MS = 2600;
@@ -136,6 +151,9 @@ export class GameController {
 
   private readonly listeners = new Set<() => void>();
   private readonly cueListeners = new Set<(step: PlaybackStep) => void>();
+  private readonly appliedListeners = new Set<(update: AppliedUpdate) => void>();
+  private guard: ActionGuard | null = null;
+  private hauntCache: { state: GameState; seat: number; value: HauntOption[] } | null = null;
   private readonly unsubscribe: Array<() => void> = [];
   private snapshot: ControllerSnapshot;
   private disposed = false;
@@ -176,6 +194,19 @@ export class GameController {
     return () => {
       this.cueListeners.delete(listener);
     };
+  }
+
+  /** Listen to every update as it arrives (before playback): the action, and the states around it. */
+  onApplied(listener: (update: AppliedUpdate) => void): () => void {
+    this.appliedListeners.add(listener);
+    return () => {
+      this.appliedListeners.delete(listener);
+    };
+  }
+
+  /** Install (or clear) a veto on the local player's actions. Automation and bots are never vetoed. */
+  setGuard(guard: ActionGuard | null): void {
+    this.guard = guard;
   }
 
   /**
@@ -254,6 +285,11 @@ export class GameController {
   /** Send an action. Failures show their reason (with the shake on `anchor`) and play uiError. */
   dispatch(action: Action, anchor: NoticeAnchor = { kind: 'board' }): boolean {
     if (this.disposed) return false;
+    const vetoed = this.guard?.(action, this.latest) ?? null;
+    if (vetoed !== null) {
+      this.showNotice(vetoed, anchor, 'info');
+      return false;
+    }
     const result: SendResult = this.transport.send(action);
     if (!result.ok) {
       this.showNotice(reasonLine(result.reason, result.params), anchor, 'error');
@@ -264,12 +300,15 @@ export class GameController {
 
   private onUpdate(update: TransportUpdate): void {
     const pace = paceForAction(update.action?.type ?? null);
+    const before = this.latest;
     this.latest = update.state;
     this.stateStamp += 1;
     for (const event of update.events) this.queue.push({ kind: 'event', event, pace, after: update.state });
     this.queue.push({ kind: 'end', after: update.state });
     if (update.action?.type !== 'advance') this.instantAdvances = 0;
     this.afterStateChange(update.action);
+    const applied: AppliedUpdate = { action: update.action, before, after: update.state, events: update.events };
+    for (const listener of [...this.appliedListeners]) listener(applied);
     this.pump();
   }
 
@@ -466,7 +505,35 @@ export class GameController {
     const controlled = this.transport.controlledSeats(s);
     const human = (seat: number): boolean => controlled.includes(seat) && !isBotSeat(s, seat);
     if (s.phase === 'players') return s.activeSeat !== null && human(s.activeSeat) ? s.activeSeat : null;
-    return activeSeats(s).find(human) ?? null;
+    return decisionSeats(s).find(human) ?? null;
+  }
+
+  // ===========================================================================================
+  // Haunting (Last Flame, GDD §13.2.7)
+  // ===========================================================================================
+
+  /** The acting seat must place its Haunt Plume now. */
+  hauntPending(): boolean {
+    const seat = this.snapshot.uiSeat;
+    return seat !== null && (this.latest.players[seat]?.haunt.pending ?? false);
+  }
+
+  /** Legal Haunt Plume tiles for the acting seat, each with the hero it would haunt (empty when no haunt is due). */
+  hauntTargets(): HauntOption[] {
+    const seat = this.snapshot.uiSeat;
+    if (seat === null || !this.hauntPending()) return [];
+    const cache = this.hauntCache;
+    if (cache && cache.state === this.latest && cache.seat === seat) return cache.value;
+    const value = hauntOptions(this.latest, seat);
+    this.hauntCache = { state: this.latest, seat, value };
+    return value;
+  }
+
+  /** Place the Haunt Plume on a tile, or skip with null. */
+  haunt(at: Pos | null): boolean {
+    const seat = this.snapshot.uiSeat;
+    if (seat === null || !this.hauntPending()) return false;
+    return this.dispatch({ type: 'haunt', seat, at }, at ? { kind: 'board' } : { kind: 'control', id: 'haunt' });
   }
 
   /** Vigil co-op: claim a seat's turn (a human's "Take My Turn", or "Let them act" for an AI ally). */
@@ -507,8 +574,40 @@ export class GameController {
   }
 
   hoverTile(pos: Pos | null): void {
-    if (samePosOrNull(pos, this.selection.hover)) return;
-    this.setSelection({ ...this.selection, hover: pos });
+    if (samePosOrNull(pos, this.selection.hover) && !this.selection.keyCursor) return;
+    this.setSelection({ ...this.selection, hover: pos, keyCursor: false });
+  }
+
+  /**
+   * Arrow keys (§15.7): move the keyboard cursor. The first press puts it on the selected piece
+   * (else your hero, else the board's centre); the cursor is the hovered tile, so tooltips,
+   * previews and G (ping) follow it, and Enter acts on it.
+   */
+  moveCursor(dx: number, dy: number): void {
+    const board = this.latest.board;
+    const current = this.selection.keyCursor ? this.selection.hover : null;
+    const start = current ?? this.cursorOrigin();
+    const next = current ? { x: Math.min(board.w - 1, Math.max(0, start.x + dx)), y: Math.min(board.h - 1, Math.max(0, start.y + dy)) } : start;
+    this.setSelection({ ...this.selection, hover: next, keyCursor: true });
+  }
+
+  private cursorOrigin(): Pos {
+    const s = this.latest;
+    const selected = this.selection.pieceId ? s.pieces[this.selection.pieceId] : undefined;
+    if (selected) return selected.pos;
+    const seat = this.uiSeatNow() ?? this.transport.controlledSeats(s)[0];
+    const hero = seat !== undefined ? s.pieces[s.players[seat]?.heroPieceId ?? ''] : undefined;
+    return hero ? hero.pos : { x: Math.floor(s.board.w / 2), y: Math.floor(s.board.h / 2) };
+  }
+
+  /** Enter (§15.7): act on the keyboard cursor's tile, else play the selected card or Power. */
+  confirm(): boolean {
+    const { hover, keyCursor } = this.selection;
+    if (keyCursor && hover) {
+      this.clickTile(hover);
+      return true;
+    }
+    return this.tryPlaySelected();
   }
 
   hoverIntent(intentId: string | null): void {
@@ -678,6 +777,10 @@ export class GameController {
     }
     const seat = this.uiSeatNow();
     if (seat === null) return;
+    if (this.hauntPending()) {
+      this.haunt(pos);
+      return;
+    }
     if (this.latest.phase === 'night_setup') {
       this.clickDeploy(seat, pos);
       return;
@@ -716,10 +819,12 @@ export class GameController {
     const move = hl.moves.find((m) => samePosOrNull(m.pos, pos));
     const special = hl.specials.find((m) => samePosOrNull(m.pos, pos));
     const anchor: NoticeAnchor = { kind: 'piece', id: pieceId };
-    if (strike && !(preferMove && move)) return this.dispatch({ type: 'strike', seat, pieceId, target: strike.option.target }, anchor);
-    if (move) return this.dispatch({ type: 'move', seat, pieceId, to: move.to }, anchor);
-    if (special) return this.dispatch(special.action, anchor);
-    return false;
+    // An attempted action counts as handled even when refused: its reason shows, the piece stays selected.
+    if (strike && !(preferMove && move)) this.dispatch({ type: 'strike', seat, pieceId, target: strike.option.target }, anchor);
+    else if (move) this.dispatch({ type: 'move', seat, pieceId, to: move.to }, anchor);
+    else if (special) this.dispatch(special.action, anchor);
+    else return false;
+    return true;
   }
 
   private clickTarget(pos: Pos): void {

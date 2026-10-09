@@ -2,7 +2,7 @@
  * Screen navigation: a typed route union and a stack-based navigator (no router library).
  * The stack is never empty; its top is the screen on show.
  */
-import type { ConfigSelection } from '../../config';
+import type { ConfigSelection, HostOptions } from '../../config';
 import type { GameConfig } from '../../engine/types';
 import type { OnlineSession } from '../../net/session';
 import { createStore, type ReadableStore } from './store';
@@ -28,6 +28,8 @@ export interface GameRoute {
    * `createNetTransport(online)` instead of a local engine; `config` is the server's (seed hidden).
    */
   online?: OnlineSession;
+  /** Host options of a local game (GDD §14.5); absent keys take HOST_OPTION_DEFAULTS. */
+  hostOptions?: Partial<HostOptions>;
 }
 
 export type LobbyRoute =

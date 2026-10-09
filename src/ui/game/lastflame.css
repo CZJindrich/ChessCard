@@ -1,0 +1,403 @@
+/*
+ * Last Flame presentation (GDD §15.4, §15.5, §13.2): the right rail as a drawer behind a tab,
+ * the 96 px bottom bar, Glory / First Light / Wanted on the plaques, the Gloam Bell and Truce
+ * chips, the queue numbers on the board, haunting and the spectator's note.
+ */
+
+/* ============================================================================ layout */
+
+.ww-game--last-flame {
+  --ww-right-w: 0px;
+  --ww-bottom-h: 6rem;
+}
+
+.ww-game--last-flame .ww-rail--right:not(.ww-rail--drawer) {
+  display: none;
+}
+
+/* The tab on the right edge that opens the drawer. */
+.ww-drawer-tab {
+  position: absolute;
+  right: 0;
+  top: calc(var(--ww-top-h) + 1.2rem);
+  z-index: 26;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  width: 1.9rem;
+  padding: 0.55rem 0 0.7rem;
+  border: 1px solid var(--ww-line-strong);
+  border-right: 0;
+  border-radius: 0.7rem 0 0 0.7rem;
+  background: linear-gradient(90deg, rgba(42, 34, 56, 0.97), rgba(25, 21, 35, 0.97));
+  box-shadow: var(--ww-shadow);
+  color: var(--ww-text);
+  cursor: pointer;
+  transition: right 180ms var(--ww-ease), background 140ms;
+}
+
+.ww-drawer-tab:hover,
+.ww-drawer-tab:focus-visible {
+  background: linear-gradient(90deg, rgba(58, 48, 76, 0.98), rgba(30, 25, 42, 0.98));
+}
+
+.ww-drawer-tab--open {
+  right: 15rem;
+}
+
+.ww-drawer-tab__count {
+  display: grid;
+  place-items: center;
+  width: 1.3rem;
+  height: 1.3rem;
+  border-radius: 50%;
+  background: #0d0b12;
+  box-shadow: inset 0 0 0 1.5px var(--ww-blood-wax);
+  font-size: 0.72rem;
+}
+
+.ww-drawer-tab__label {
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  font-family: var(--ww-font-label);
+  font-weight: 700;
+  font-size: 0.64rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ww-text-dim);
+}
+
+/* The drawer itself: the right rail laid over the board's right edge. */
+.ww-rail--drawer {
+  position: absolute;
+  right: 0;
+  top: var(--ww-top-h);
+  bottom: var(--ww-bottom-h);
+  z-index: 25;
+  width: 15rem;
+  padding-top: 0.5rem;
+  background: linear-gradient(180deg, rgba(25, 21, 35, 0.97), rgba(18, 15, 25, 0.97));
+  border-left: 1px solid var(--ww-line-strong);
+  box-shadow: -0.8rem 0 1.6rem rgba(0, 0, 0, 0.55);
+  animation: ww-drawer-in 180ms var(--ww-ease) both;
+}
+
+@keyframes ww-drawer-in {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: none;
+  }
+}
+
+/* ============================================================================ 96 px bottom bar */
+
+/* The bar keeps a right column for the controls even though the rail above it is a drawer. */
+.ww-game--last-flame .ww-handbar {
+  grid-template-columns: var(--ww-left-w) minmax(0, 1fr) 14rem;
+}
+
+.ww-game--last-flame .ww-handbar::before {
+  top: 1rem;
+}
+
+.ww-game--last-flame .ww-handbar__left {
+  padding-bottom: 0.45rem;
+  gap: 0.3rem;
+}
+
+.ww-game--last-flame .ww-controls {
+  padding-bottom: 0.35rem;
+}
+
+.ww-game--last-flame .ww-ctrl {
+  width: 2.35rem;
+  height: 2.35rem;
+  margin-bottom: 0.2rem;
+}
+
+.ww-game--last-flame .ww-end-turn {
+  margin-top: -1.2rem;
+}
+
+.ww-game--last-flame .ww-end-turn .ww-art {
+  width: 4.4rem;
+  height: 4.4rem;
+}
+
+.ww-game--last-flame .ww-ctrl--power .ww-art {
+  width: 2.15rem;
+  height: 2.15rem;
+}
+
+.ww-game--last-flame .ww-hand-card__key {
+  top: 0.25rem;
+  right: 0.25rem;
+}
+
+/* ============================================================================ plaques */
+
+.ww-plaque__glory {
+  position: relative;
+}
+
+.ww-plaque__glory .ww-art {
+  width: 1rem;
+  height: 1rem;
+}
+
+.ww-plaque__glory--pop {
+  animation: ww-glory-pop 900ms var(--ww-ease);
+}
+
+@keyframes ww-glory-pop {
+  0% {
+    transform: scale(1);
+  }
+  20% {
+    transform: scale(1.35);
+    color: #fff3c4;
+    text-shadow: 0 0 0.6rem rgba(255, 216, 107, 0.9);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.ww-plaque__glory-delta {
+  position: absolute;
+  left: 100%;
+  top: -0.2rem;
+  margin-left: 0.15rem;
+  font-size: 0.7rem;
+  color: var(--ww-sunrise-gold);
+  pointer-events: none;
+  animation: ww-glory-delta 900ms ease-out both;
+}
+
+.ww-plaque__glory-delta--loss {
+  color: var(--ww-ash-text);
+}
+
+@keyframes ww-glory-delta {
+  from {
+    opacity: 1;
+    transform: translateY(0.3rem);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-0.6rem);
+  }
+}
+
+.ww-plaque__first-light {
+  display: inline-grid;
+  place-items: center;
+  filter: drop-shadow(0 0 0.3rem rgba(255, 216, 107, 0.6));
+}
+
+.ww-plaque__first-light .ww-art {
+  width: 1rem;
+  height: 1rem;
+}
+
+/* The Wanted seal hangs on the portrait's corner (the sole Glory leader, §13.2.4). */
+.ww-plaque__wanted {
+  position: absolute;
+  left: -0.45rem;
+  top: -0.4rem;
+  filter: drop-shadow(0 0.15rem 0.25rem rgba(0, 0, 0, 0.7));
+}
+
+.ww-plaque__wanted .ww-art {
+  width: 1.4rem;
+  height: 1.4rem;
+}
+
+.ww-plaque--out .ww-plaque__status {
+  color: var(--ww-ash-text);
+}
+
+/* ============================================================================ top bar */
+
+.ww-gloam-bell {
+  color: #cdb9f2;
+  border-color: rgba(126, 91, 194, 0.45);
+}
+
+.ww-gloam-bell .ww-art {
+  width: 1.6rem;
+  height: 1.6rem;
+}
+
+.ww-gloam-bell--closing {
+  border-color: var(--ww-gloam-band, #7e5bc2);
+  box-shadow: 0 0 0.8rem rgba(126, 91, 194, 0.55);
+  animation: ww-bell-ring 1.4s ease-in-out infinite;
+}
+
+@keyframes ww-bell-ring {
+  0%,
+  100% {
+    box-shadow: 0 0 0.4rem rgba(126, 91, 194, 0.35);
+  }
+  50% {
+    box-shadow: 0 0 1rem rgba(126, 91, 194, 0.85);
+  }
+}
+
+.ww-truce-chip {
+  color: var(--ww-moonmoth);
+  border-color: rgba(159, 216, 232, 0.4);
+  background: rgba(159, 216, 232, 0.08);
+}
+
+.ww-truce-chip__mark {
+  width: 1.15rem;
+  height: 1.15rem;
+}
+
+/* ============================================================================ board */
+
+.ww-queue-badge text {
+  font-weight: 700;
+}
+
+.ww-haunt-ghost {
+  pointer-events: none;
+}
+
+/* ============================================================================ haunting, spectating */
+
+.ww-haunt-prompt {
+  border-color: rgba(154, 92, 255, 0.6);
+  box-shadow: var(--ww-shadow), 0 0 1.2rem rgba(154, 92, 255, 0.25);
+}
+
+.ww-haunt-prompt .ww-card-prompt__name {
+  color: #cdb9f2;
+}
+
+.ww-haunt-prompt__clock {
+  display: grid;
+  place-items: center;
+  width: 1.7rem;
+  height: 1.7rem;
+  border-radius: 50%;
+  font-size: 0.8rem;
+  color: var(--ww-text);
+  background: conic-gradient(rgba(154, 92, 255, 0.85) calc(var(--ww-haunt-left, 1) * 360deg), rgba(13, 11, 18, 0.9) 0);
+  box-shadow: inset 0 0 0 0.22rem rgba(22, 18, 30, 0.95);
+}
+
+.ww-spectate {
+  position: absolute;
+  left: 50%;
+  bottom: 0.9rem;
+  translate: -50% 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
+  max-width: 34rem;
+  padding: 0.45rem 1.2rem 0.55rem;
+  border-radius: var(--ww-radius);
+  background: rgba(22, 18, 30, 0.92);
+  border: 1px solid rgba(126, 91, 194, 0.5);
+  text-align: center;
+}
+
+.ww-spectate__title {
+  font-family: var(--ww-font-label);
+  font-weight: 700;
+  font-size: 0.82rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #cdb9f2;
+}
+
+.ww-spectate__text {
+  font-size: 0.82rem;
+  color: var(--ww-text-dim);
+}
+
+/* ============================================================================ narrow screens */
+
+/* The collapsed plaques (below 1200 px) still show Glory and the First Light token. */
+@media (max-width: 1199px) {
+  .ww-game--last-flame .ww-plaque__body > .ww-plaque__row {
+    display: flex;
+    justify-content: center;
+    gap: 0.2rem;
+  }
+
+  .ww-game--last-flame .ww-plaque__row .ww-plaque__flame {
+    display: none;
+  }
+
+  .ww-game--last-flame .ww-plaque__glory {
+    font-size: 0.68rem;
+  }
+
+  .ww-game--last-flame .ww-plaque__glory .ww-art {
+    width: 0.8rem;
+    height: 0.8rem;
+  }
+
+  .ww-game--last-flame .ww-plaque__glory-delta {
+    display: none;
+  }
+}
+
+/* ============================================================================ reduced motion */
+
+.ww-reduced-motion .ww-plaque__glory--pop,
+.ww-reduced-motion .ww-plaque__glory-delta,
+.ww-reduced-motion .ww-gloam-bell--closing,
+.ww-reduced-motion .ww-rail--drawer {
+  animation: none;
+}
+
+.ww-reduced-motion .ww-drawer-tab {
+  transition: none;
+}
+
+/* ============================================================================ podium */
+
+.ww-glory-table {
+  table-layout: fixed;
+  width: min(44rem, 100%);
+}
+
+.ww-glory-table th[scope='row'],
+.ww-glory-table thead th:first-child {
+  width: 9rem;
+}
+
+.ww-glory-table td,
+.ww-glory-table thead th:not(:first-child) {
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Long seat names (a Warden's "of Bayberry") wrap onto a second line instead of being cut. */
+.ww-glory-table thead th:not(:first-child) {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  vertical-align: bottom;
+  line-height: 1.15;
+}
+
+.ww-podium__step--1 .ww-podium__score {
+  color: var(--ww-flame-core);
+}
+
+.ww-podium__out {
+  font-size: 0.72rem;
+  font-style: italic;
+  color: var(--ww-ash-text);
+}

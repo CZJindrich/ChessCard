@@ -75,11 +75,11 @@ describe('Heirlooms', () => {
   it("candlemakers_mold: the first Summon each seat turn costs 1 less", () => {
     const s = blankScenario('sconce_paladin', 'd2');
     grant(s, 'candlemakers_mold');
-    const squire = giveCard(s, 'call_the_squire');
-    expect(cardTargets(s, 0, squire).cost).toBe(1);
-    const after = playCard(s, squire, ['d3']).state;
+    const horse = giveCard(s, 'saddle_the_wickhorse');
+    expect(cardTargets(s, 0, horse).cost).toBe(1);
+    const after = playCard(s, horse, ['d3']).state;
     expect(after.players[0].flame).toBe(2);
-    expect(cardTargets(after, 0, giveCard(after, 'call_the_squire')).cost).toBe(2);
+    expect(cardTargets(after, 0, giveCard(after, 'saddle_the_wickhorse')).cost).toBe(2);
     expect(cardTargets(after, 0, giveCard(after, 'light_a_taper')).cost).toBe(1);
   });
 

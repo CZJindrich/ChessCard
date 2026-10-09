@@ -142,7 +142,7 @@ export function runOp(ctx: Ctx, op: EffectOp, env: EffectEnv): void {
       for (const p of subjects(ctx, op, env)) giveWard(ctx, p);
       return;
     case 'burn':
-      for (const p of subjects(ctx, op, env)) applyBurn(ctx, p);
+      for (const p of subjects(ctx, op, env)) applyBurn(ctx, p, env.seat);
       return;
     case 'daze':
       for (const p of subjects(ctx, op, env)) applyDaze(ctx, p);

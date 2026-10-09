@@ -7,7 +7,7 @@ import type { ReactElement } from 'react';
 import { BossArt, PieceArt, StatusIcon } from '../../art';
 import type { ContentRegistry, GameState, Piece, Pos } from '../../engine/types';
 import { attackSummary, moveSummary } from '../model/describe';
-import { useGameSnapshot, useRegistry } from './context';
+import { useGameSelector, useRegistry } from './context';
 import { nameOf } from './model';
 import { houseColorOf, isActingPiece } from './pieceView';
 
@@ -46,10 +46,14 @@ function pieceUnder(state: GameState, pos: Pos | null): Piece | null {
 }
 
 export function PieceCard(): ReactElement | null {
-  const snap = useGameSnapshot();
+  // Re-render only when the piece shown changes, not on every hovered tile.
+  const { state, pieceId } = useGameSelector((snap) => {
+    const { selection } = snap;
+    const shown = pieceUnder(snap.state, selection.hover) ?? (selection.pieceId ? snap.state.pieces[selection.pieceId] : undefined) ?? (selection.inspectId ? snap.state.pieces[selection.inspectId] : undefined);
+    return { state: snap.state, pieceId: shown?.id ?? null };
+  });
   const registry = useRegistry();
-  const { state, selection } = snap;
-  const piece = pieceUnder(state, selection.hover) ?? (selection.pieceId ? state.pieces[selection.pieceId] : undefined) ?? (selection.inspectId ? state.pieces[selection.inspectId] : undefined);
+  const piece = pieceId ? state.pieces[pieceId] : undefined;
   if (!piece) return null;
   const lines = describe(registry, piece);
   const acting = isActingPiece(state, piece);

@@ -32,6 +32,47 @@
   inset: 0;
   z-index: 0;
   opacity: 0.55;
+  pointer-events: none;
+}
+
+.ww-game__sky-art {
+  position: absolute;
+  inset: 0;
+}
+
+/* Drifting motes: transform and opacity only, so the compositor moves them (§16.10). */
+.ww-motes {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+.ww-mote {
+  position: absolute;
+  border-radius: 50%;
+  background: var(--ww-moth-silver);
+  opacity: 0;
+  will-change: transform, opacity;
+  animation-name: ww-mote-drift;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+
+@keyframes ww-mote-drift {
+  0% {
+    transform: translate(0, 0);
+    opacity: 0;
+  }
+  15% {
+    opacity: 0.7;
+  }
+  85% {
+    opacity: 0.55;
+  }
+  100% {
+    transform: translate(var(--ww-mote-x, 0px), -14rem);
+    opacity: 0;
+  }
 }
 
 .ww-game__veil {

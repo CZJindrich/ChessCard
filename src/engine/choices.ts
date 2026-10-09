@@ -41,7 +41,9 @@ export function applyDeploy(ctx: Ctx, a: ActionOf<'deploy'>): void {
   const piece = ctx.s.pieces[a.pieceId];
   const from = piece.pos;
   piece.pos = { ...a.to };
-  if (piece.kind === 'hero') ctx.s.players[a.seat].startTile = { ...a.to };
+  // Vigil: the deploy tile becomes the default. Last Flame keeps the seat's start tile (deploys
+  // stay within 1 of it; respawns and Plume quadrants use it).
+  if (piece.kind === 'hero' && ctx.s.config.mode === 'vigil') ctx.s.players[a.seat].startTile = { ...a.to };
   emit(ctx, { type: 'piece_moved', pieceId: piece.id, from, to: piece.pos, kind: 'deploy' });
   addLog(ctx, `${pieceName(ctx.reg, piece)} deploys to ${sqName(piece.pos)}.`, a.seat);
 }

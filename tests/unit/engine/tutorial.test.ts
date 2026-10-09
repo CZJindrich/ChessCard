@@ -11,8 +11,11 @@ import { act, eventsOf, heroPiece } from './helpers';
 import { HEROES } from './bossHelpers';
 
 const reg = getContent();
-/** "Flame used" column of the §15.2 table. */
-const FLAME_USED: Record<string, number> = { sconce_paladin: 3, moth_witch: 2, lampwright: 3, ember_duelist: 1 };
+/**
+ * "Flame used" column of the §15.2 table. Brannoc's line costs 1 + 1 since the E5 balance pass
+ * made Call the Squire cost 1 (the GDD table still says 1 + 2 = 3).
+ */
+const FLAME_USED: Record<string, number> = { sconce_paladin: 2, moth_witch: 2, lampwright: 3, ember_duelist: 1 };
 
 function firstEverConfig(hero: string, seed = 'tutorial-seed'): GameConfig {
   const { config } = resolveConfig(quickPlaySelection({ gamesCompleted: 0, lastQuickPlayLost: false, firstLastFlameDone: false }, hero));

@@ -1423,6 +1423,8 @@ export interface Piece {
   ward: boolean;
   /** Tallies of Burn left (0 = not burning). */
   burn: number;
+  /** Seat whose effect applied the Burn (credit for a Burn kill at Tally, §6.3); absent or null = none. */
+  burnSeat?: number | null;
   dazed: boolean;
   charm: CardInstance | null;
   /**
@@ -1444,6 +1446,11 @@ export interface Piece {
   initiative: number;
   /** Seat that last pushed/pulled/swapped this piece this round (kill credit, §6.3). */
   lastDisplacedBy: number | null;
+  /**
+   * Last Flame: when that displacement happened (`LastFlameState.creditClock`), so a Snuff kill
+   * goes to the most recent displacer or reverser (§6.3). Absent = before any (Vigil: always).
+   */
+  lastDisplacedAt?: number;
   buffs: PieceTurnBuffs;
   /** Relit by a `relight` action: returns at the end of the current seat turn. */
   pendingRelight: boolean;
@@ -1482,6 +1489,8 @@ export interface Intent {
   reversed: boolean;
   /** Seat that last reversed this intent (kill credit for its hits, §6.3), or null. */
   reversedBy: number | null;
+  /** Last Flame: when it was reversed (`LastFlameState.creditClock`); see `Piece.lastDisplacedAt`. */
+  reversedAt?: number;
   /** 1-based queue position (the only order number players see). */
   queue: number;
   /** Cached tiles for display (recomputed after every displacement). */
@@ -1552,8 +1561,9 @@ export interface CarryOverState {
 }
 
 export interface HauntState {
+  /** The hero this seat's last Haunt Plume haunted (no hero twice in a row, §13.2.7). */
   lastHeroId: string | null;
-  /** Must place a Haunt Plume now (Tally step 10). */
+  /** Owes a Haunt placement now (a Plume placement: night_setup or Tally step 10); `haunt` answers it. */
   pending: boolean;
 }
 
@@ -1575,6 +1585,8 @@ export interface PlayerState {
   glory: number;
   eliminated: boolean;
   eliminationBand: number | null;
+  /** Last Flame: the Night and round of the elimination (podium, log); absent while in the game. */
+  eliminatedAt?: { night: number; round: number } | null;
   turnEnded: boolean;
   /** night_setup Ready flag. */
   ready: boolean;
@@ -1626,6 +1638,12 @@ export interface GloamState {
   schedule: GloamClosing[];
   /** Ring shown as `gloam_warning` this round, or null. */
   warningRing: number | null;
+  /**
+   * The Gloam Bell (§13.2.8): rounds from the current one to the round whose Tally applies the
+   * next closing (0 = it closes at this round's Tally; night_setup counts as round 0 of its
+   * Night). Null once every closing is done.
+   */
+  roundsToNext: number | null;
 }
 
 export interface VigilState {
@@ -1644,12 +1662,20 @@ export interface BountyRecord {
 
 export interface LastFlameState {
   gloam: GloamState;
+  /** A truce is in force this Night (§13.2.3). */
   truce: boolean;
-  /** Seat with strictly the most Glory, or null on a tie. */
+  /** Seat with strictly the most Glory (eliminated seats count), or null on a tie: the Wanted seal. */
   leader: number | null;
   bountiesPaid: BountyRecord[];
+  /** The band the next elimination opens (1, 2, …): a later band places higher (§13.2.6). */
   nextBand: number;
   bossRounds: number;
+  /** Glory per seat (index = seat) by reason; each record sums to that seat's Glory. */
+  gloryBySeat: Array<Record<GloryReason, number>>;
+  /** The Tally stopped at step 10 for Haunt placements (`haunt.pending`); the next advance resumes it. */
+  tallyPaused: boolean;
+  /** Monotonic clock ordering displacements and reversals for Snuff kill credit (§6.3). */
+  creditClock: number;
 }
 
 export interface TollState {

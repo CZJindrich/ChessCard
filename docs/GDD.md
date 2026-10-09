@@ -1824,3 +1824,33 @@ This version rewrites §1–§13 in full, so every cross-reference resolves. It 
 | `bellfry_steps` | **Renamed** `belfry_steps`. | Correct spelling. |
 | Renames accepted from review | `sconce_knight` → `sconce_paladin`; `bot_squire` / `bot_knight` / `bot_sage` → `bot_apprentice` / `bot_warden` / `bot_elder`; `gutterblade` → `twinwick`; `drip_golem` → `drip_hulk`; `wickgnawer_moth` → `gnawmoth`; `toll_of_silence` → `silencing_peal`; `the_hush` → `muffled_nave`; `check` → `sceptre_sweep`; `long_night` → `witching_hour`; `bounty_crown` → `bounty_seal`; Relic → Charm; `colorblind_shapes` → `bold_outlines`; `omen` file → `omens`; settings prefix `WW1:` → `WAX1:`. | Chess names only on pieces that move like that piece. Wickfolk and Snuff no longer share prefixes. "Toll", "Hush" and "Check" are no longer overloaded. |
 | Removed ids | `rekindle` (replaced by the generic `relight`), `vow_*` and the `vow` phase, `initiative_coin`, `the_match`, `restless_flame`, `hunted_flame`, `snuff_phase_speed` (now `enemy_turn_speed`), `ambience_volume` (ambience plays on the music bus), the `roll_die` op, the `queen` direction (`all` covers it), the `forward` direction, and the `x5`, `band2` and `block2x3` area shapes. | Unused or duplicated. |
+
+### C.1 Clarifications from implementation
+
+Rules questions the GDD left open or contradicted, as the engineers settled them (recorded in their
+hand-off notes). They are clarifications, not changes to the design above.
+
+| Topic | Decision | Note |
+|---|---|---|
+| Smoldering Wicks and line of sight (§5.3 vs §5.4) | **Wicks do not block line of sight**; they still block movement. (`SMOLDERING_WICK_BLOCKS_LOS` in `src/engine/state.ts`.) | Follows the overlay table in §5.4. |
+| Kill credit for Snuff hits (Vigil, §6.3) | The victim's last displacer this round, else the attacker's, else whoever reversed the intent. | Last Flame uses a clock instead (below). |
+| Optional picks (Sunshield Charge's hit, §7.3) | An optional pick may be left out **only when it has no valid choice**. | Skipping a pick that has a valid choice is rejected (`INVALID_TARGET`). |
+| Moves against immune pieces | A pick whose effects only move a piece that is immune to that move is not offered (reason `IMMUNE`). Castle ignores immunity. | Covers Feint, Ember Waltz, Flutterswap and Velvet Pull. |
+| Charms on a fallen hero (§7.1) | Charms stay on a Smoldering hero (Riposte answers the fatal hit). A Charm returns to the discard pile of the seat that played it. | |
+| Brass Thimble, Swarm of Wings | Brass Thimble raises max HP **and** current HP by 2. Swarm of Wings readies every Velvet Moth you own, even ones that already acted. | |
+| Undo commit points (§6.10) | Any draw, shuffle, Plume placed or RNG stream advanced. Ids keep counting after an undo. | |
+| Retry this Night (§13.1.7) | Allowed from the boss intro to the Tally, and from the defeat screen. It restores the night_setup snapshot exactly, ids and log included. | |
+| Boss spawn timing (§13.2.9, §13.3) | The boss spawns at the Boss Night's night_setup, before the initial enemies and Plumes; `boss_intro` is only the intro screen. | The initial enemies and Plumes avoid its footprint; the Retry snapshot includes the boss. |
+| Boss intent ties (§10.5) | After each intent's listed criteria, Candles are a last criterion (Ladle Slam, Sceptre Sweep, Wing Gust, Dust Storm), then reading order. | The GDD names only heroes and Wickfolk. |
+| Turnabout on a boss | Reverses **every reversible** intent of that boss. Hushwave (centred) and Silencing Peal (global) cannot be reversed. | A boss with only those gives `NO_DIRECTION`. |
+| Boss death (§10.1) | Also clears every Plume on the board. Devour Light heals at most once per Hunger. CHECK! fires when the King's escapes change to 1 or 2. | Plumes hold Snuff. |
+| Last Flame: no Dawn relight (§13.2.6, §13.6) | A Wick stays until its owner's next seat turn, even across Nights. A respawn also returns the hero's Charm. | Includes the Boss Night. |
+| Last Flame: falling in the Gloam | A hero that falls on a Gloam tile is eliminated at once. | Smoldering pieces never take damage; the Gloam step handles Wicks. |
+| Elimination bands (§13.2.6) | One band per player action, per intent, or per Tally step; any other elimination gets a fresh band. | |
+| Last Flame end checks (§13.2.9) | Run at Tally step 9 on any Night, so "one or no heroes standing" can end the game before the Boss Night. Reason priority: boss fell, then last standing, then boss rounds. | |
+| Survival bonus (§13.2.2) | The +5 is awarded as Glory at the end: `Standing.glory` excludes it, `score` includes it. | |
+| Glory leader and Bounty (§13.2.4) | Eliminated seats count for the leader. The Bounty uses the leader as it stood before that fall's Glory. | |
+| Last Flame kill credit | A Snuff kill goes to the most recent displacer or reverser (a clock); a Burn kill to the seat that applied the Burn; Gloam and Hot Wax kills to whoever displaced the piece that round. | Vigil keeps the fixed order above. |
+| Haunting details (§13.2.7) | Off when `neutrals` is off. Skips do not reset "same hero twice in a row". A seat with no legal tile is skipped. Bots haunt the highest-Glory living hero from the closest legal tile. | |
+| Concede in Last Flame | No vote: the seat is eliminated and keeps its Glory. When no human seat is left, the game ends (`conceded`). | |
+| Online content (§11.6, A.3) | The server plays the base content only; a client with a mod loaded is refused with `content_mismatch`. Every update carries the seat's full view (no hash resync). | |

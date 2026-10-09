@@ -42,6 +42,11 @@ export interface Ctx {
    * one is held until the outermost one ends, so a victory in the same effect wins.
    */
   atomic?: { depth: number; defeat: string | null };
+  /**
+   * Open elimination-band scope (Last Flame, §13.2.6): eliminations inside one player action,
+   * one intent or one Tally step share the band allocated on the first of them.
+   */
+  band?: { value: number | null };
 }
 
 export function makeCtx(s: GameState, reg: ContentRegistry = getContent()): Ctx {
@@ -55,8 +60,34 @@ export function makeCtx(s: GameState, reg: ContentRegistry = getContent()): Ctx 
  */
 export function cloneState(s: GameState): GameState {
   const { config, log, nightSnapshot, undo, ...rest } = s;
-  const copy = JSON.parse(JSON.stringify(rest)) as typeof rest;
+  const copy = copyJson(rest);
   return { ...copy, config, log: log.slice(), nightSnapshot, undo: { frames: undo.frames.slice(), depth: undo.depth } };
+}
+
+/**
+ * Deep copy of plain JSON data: the same result as `JSON.parse(JSON.stringify(value))` (undefined
+ * object fields dropped, undefined array slots and non-finite numbers become null) without the
+ * string round trip, which makes it several times faster (bot planners clone thousands of times).
+ */
+export function copyJson<T>(value: T): T {
+  return copyValue(value) as T;
+}
+
+function copyValue(value: unknown): unknown {
+  if (typeof value === 'number') return Number.isFinite(value) ? value : null;
+  if (typeof value !== 'object' || value === null) return value;
+  if (Array.isArray(value)) {
+    const out: unknown[] = new Array<unknown>(value.length);
+    for (let i = 0; i < value.length; i++) out[i] = value[i] === undefined ? null : copyValue(value[i]);
+    return out;
+  }
+  const out: Record<string, unknown> = {};
+  const record = value as Record<string, unknown>;
+  for (const key in record) {
+    const field = record[key];
+    if (field !== undefined && typeof field !== 'function') out[key] = copyValue(field);
+  }
+  return out;
 }
 
 /** Drop every undo frame (seat-turn start and end, commit points, Retry). */

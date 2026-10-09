@@ -1,11 +1,14 @@
 /**
- * Online end to end: the real game server (`tsx server/index.ts`, serving dist/ and /ws) on a
- * free port, two browser contexts. The host opens a room from Setup's Host Online, the guest
- * joins with the code, takes a seat, both Ready, the host starts, and both land on the game
- * screen with the online session (host controls seat 1, guest seat 2).
+ * Online end to end: the real game server (`tsx server/index.ts`, serving the built client and
+ * /ws) on a free port, two browser contexts. The host opens a room from Setup's Host Online, the
+ * guest joins with the code, takes a seat, both Ready, the host starts, and both land on the game
+ * screen playing through `createNetTransport(route.online)` (host seat 1, guest seat 2). Then,
+ * with real clicks: both Ready the Night, each claims the turn and moves its hero, and each sees
+ * the other's move; the plaques say who plays each seat, the decision timer burns, and a guest
+ * who drops shows as reconnecting on the host's plaque.
  *
- * If the game screen already plays through `createNetTransport(route.online)`, the test also
- * checks that the guest's Ready (a real click path through the controller) reaches the host.
+ * The client served is `WICKWATCH_DIST` when set (a fresh build elsewhere), else dist/ (built
+ * when missing).
  */
 import { spawn, execSync, type ChildProcess } from 'node:child_process';
 import { existsSync, mkdtempSync } from 'node:fs';
@@ -49,12 +52,13 @@ function freePort(): Promise<number> {
 
 test.beforeAll(async () => {
   test.setTimeout(240_000);
-  if (!existsSync(join(ROOT, 'dist', 'index.html'))) execSync('npx vite build', { cwd: ROOT, stdio: 'inherit' });
+  const dist = process.env.WICKWATCH_DIST ?? join(ROOT, 'dist');
+  if (!existsSync(join(dist, 'index.html'))) execSync('npx vite build', { cwd: ROOT, stdio: 'inherit' });
   const port = await freePort();
   baseUrl = `http://127.0.0.1:${port}/`;
   server = spawn('npx', ['tsx', 'server/index.ts'], {
     cwd: ROOT,
-    env: { ...process.env, PORT: String(port), HOST: '127.0.0.1', WICKWATCH_DATA: mkdtempSync(join(tmpdir(), 'ww-e2e-data-')) },
+    env: { ...process.env, PORT: String(port), HOST: '127.0.0.1', WICKWATCH_DIST: dist, WICKWATCH_DATA: mkdtempSync(join(tmpdir(), 'ww-e2e-data-')) },
     stdio: ['ignore', 'pipe', 'pipe'],
     // Its own process group, so npx, tsx and node all stop together.
     detached: true,
@@ -85,6 +89,13 @@ test.afterAll(() => {
 async function newPlayer(browser: Browser, errors: string[]): Promise<Page> {
   const context = await browser.newContext({ viewport: { width: 1280, height: 720 } });
   const page = await context.newPage();
+  // Every tip seen and quick playback, so nothing pauses the two screens.
+  await page.addInitScript(() => {
+    localStorage.setItem('chesscard.profile', JSON.stringify({ version: 1, playerName: 'Ash', gamesCompleted: 3 }));
+    localStorage.setItem('chesscard.presentation', JSON.stringify({ animation_speed: 3, confirm_end_turn: 'never' }));
+    const tips = ['plume', 'dread', 'push', 'bump', 'hot_wax', 'chimney', 'shrine', 'ward', 'dazed', 'aimed', 'smoldering', 'toll', 'moth_die', 'chandlery', 'boss_phase', 'crown', 'check', 'gloam_warning', 'lit_shrine'];
+    localStorage.setItem('chesscard.tips', JSON.stringify(tips));
+  });
   page.on('pageerror', (error) => errors.push(error.message));
   page.on('console', (message) => {
     if (message.type() === 'error') errors.push(message.text());
@@ -93,8 +104,29 @@ async function newPlayer(browser: Browser, errors: string[]): Promise<Page> {
   return page;
 }
 
-test('host and guest meet in a room and start a Vigil together', async ({ browser }) => {
-  test.setTimeout(120_000);
+/** Wait until this screen is idle in the players phase. */
+async function waitForPlayers(page: Page): Promise<void> {
+  await page.waitForFunction(
+    () => {
+      const s = window.__ww?.controller.getSnapshot();
+      return s !== undefined && !s.animating && s.latest.phase === 'players';
+    },
+    null,
+    { timeout: 30_000 },
+  );
+}
+
+/** Click a board tile (x = file, y = rank) on this screen. */
+async function clickBoard(page: Page, pos: { x: number; y: number }): Promise<void> {
+  const box = await page.getByTestId('board-input').boundingBox();
+  const tile = Number(await page.locator('.ww-gameboard').getAttribute('data-tile'));
+  if (!box || !tile) throw new Error('board not laid out');
+  const rows = Math.round(box.height / tile);
+  await page.mouse.click(box.x + pos.x * tile + tile / 2, box.y + (rows - 1 - pos.y) * tile + tile / 2);
+}
+
+test('host and guest meet in a room, start a Vigil together and see each other play', async ({ browser }) => {
+  test.setTimeout(180_000);
   const errors: string[] = [];
   const host = await newPlayer(browser, errors);
   const guest = await newPlayer(browser, errors);
@@ -141,18 +173,56 @@ test('host and guest meet in a room and start a Vigil together', async ({ browse
     expect(online.names?.[1]).toBe('Bob');
   }
 
-  // With the game screen wired to NetTransport, the controller only drives this tab's seat and
-  // a Ready sent from the guest's controller reaches the host through the server.
-  const integrated = await guest.evaluate(() => {
-    const seats = window.__ww?.controller.getSnapshot().controlledSeats ?? [];
-    return seats.length === 1 && seats[0] === 1;
-  });
-  if (integrated) {
-    await guest.evaluate(() => window.__ww?.controller.ready());
-    await expect.poll(() => host.evaluate(() => window.__wwNet?.session.get().game?.view.players[1].ready), { timeout: 10_000 }).toBe(true);
-  } else {
-    test.info().annotations.push({ type: 'note', description: 'GameScreen does not use createNetTransport yet: verified up to the online game route.' });
+  // The game screen plays through NetTransport: each tab drives only its own seat.
+  for (const [page, seat] of [
+    [host, 0],
+    [guest, 1],
+  ] as const) {
+    await expect.poll(() => page.evaluate(() => window.__ww?.controller.getSnapshot().controlledSeats ?? [])).toEqual([seat]);
+    await expect(page.getByTestId(`seat-tag-${seat}`)).toHaveText('You');
+    await expect(page.getByTestId(`seat-tag-${1 - seat}`)).toHaveText('Online');
   }
+
+  // Night setup: each player presses Ready on their own screen.
+  for (const page of [host, guest]) {
+    await expect(page.getByTestId('night-title')).toBeHidden({ timeout: 6_000 });
+    await page.getByTestId('ready').click();
+  }
+  for (const page of [host, guest]) await waitForPlayers(page);
+  // The decision timer burns beside End Turn (the room plays with the online `normal` timer).
+  await expect(host.getByTestId('turn-timer')).toBeVisible({ timeout: 10_000 });
+
+  // Each player in turn claims, moves the hero by clicking the board, and ends the turn; the other
+  // screen shows the move.
+  for (const [mover, watcher, seat] of [
+    [host, guest, 0],
+    [guest, host, 1],
+  ] as const) {
+    await waitForPlayers(mover);
+    // With two players still to act the turn is claimed; the last one gets it automatically.
+    const claim = mover.getByTestId(`plaque-${seat}`).getByRole('button', { name: 'Take My Turn' });
+    if (await claim.isVisible().catch(() => false)) await claim.click();
+    await expect.poll(() => mover.evaluate(() => window.__ww?.controller.getSnapshot().uiSeat ?? null), { timeout: 10_000 }).toBe(seat);
+    const move = await mover.evaluate((me) => {
+      const controller = window.__ww?.controller;
+      const s = controller?.getSnapshot().latest;
+      const heroId = s?.players[me].heroPieceId ?? '';
+      const target = controller?.highlightsFor(heroId)?.moves[0];
+      return { heroId, from: s?.pieces[heroId]?.pos ?? null, dot: target?.pos ?? null, to: target?.to ?? null };
+    }, seat);
+    if (!move.from || !move.dot || !move.to) throw new Error(`seat ${seat}: no move for the hero`);
+    await clickBoard(mover, move.from);
+    await clickBoard(mover, move.dot);
+    await expect
+      .poll(() => watcher.evaluate((id) => window.__ww?.controller.getSnapshot().latest.pieces[id]?.pos ?? null, move.heroId), { timeout: 10_000 })
+      .toEqual(move.to);
+    await mover.getByTestId('end-turn').click();
+    await expect.poll(() => watcher.evaluate((me) => window.__ww?.controller.getSnapshot().latest.players[me].turnEnded ?? false, seat), { timeout: 10_000 }).toBe(true);
+  }
+
+  // The guest drops: the host's plaque for that seat shows the reconnect grace.
+  await guest.context().close();
+  await expect(host.getByTestId('seat-tag-1')).toContainText('Reconnecting', { timeout: 15_000 });
 
   expect(errors.filter((e) => !/WebSocket connection .* failed/.test(e))).toEqual([]);
 });

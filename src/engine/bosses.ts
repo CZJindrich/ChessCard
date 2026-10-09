@@ -16,6 +16,7 @@ import { baseEnv, runEffects } from './effects';
 import type { EffectEnv } from './effects';
 import { DIRS_ALL, addPos, footprint, footprintDistance, inBounds, inFootprint, sortReadingOrder, sqName } from './geometry';
 import { addLog, pieceName } from './log';
+import { awardBossKill, syncBossGlory } from './modes/lastFlame';
 import { endVigil } from './modes/vigil';
 import { streamPick } from './rng';
 import { createBossPiece, placeNear, summonTileTest } from './spawn';
@@ -217,6 +218,7 @@ export function onBossDamaged(ctx: Ctx, boss: Piece, amount: number, seat: numbe
   const found = activeBoss(ctx.s, ctx.reg);
   if (!found || found.boss !== boss) return;
   creditBossDamage(found.state, seat, amount);
+  syncBossGlory(ctx);
   if (boss.hp <= 0) return;
   const target = bossPhaseForHp(found.def, found.state.maxHp, boss.hp);
   while (found.state.phase < target && !isOver(ctx.s) && ctx.s.pieces[boss.id] === boss) {
@@ -253,6 +255,7 @@ export function onBossDeath(ctx: Ctx, boss: Piece, killerSeat: number | null): v
   if (s.boss) s.boss = { ...s.boss, killerSeat, escapes: 0, escapeDirs: [], hungry: false };
   addLog(ctx, `${reg.bosses.byId[boss.defId]?.name ?? 'The boss'} falls, and the smoke goes with it.`);
   if (s.config.mode === 'vigil') endVigil(ctx, 'victory', null);
+  else awardBossKill(ctx, killerSeat);
 }
 
 // =============================================================================================
@@ -330,6 +333,7 @@ function checkmate(ctx: Ctx, found: ActiveBoss, args: Record<string, number | st
       stats.damageDealt += share.amount;
     }
   }
+  syncBossGlory(ctx);
 }
 
 /** End of the players phase: the Guttered King's CHECKMATE check. */
@@ -379,7 +383,7 @@ export function refreshBossWatch(ctx: Ctx): void {
 }
 
 // =============================================================================================
-// Last Flame Glory data (§13.2.2) — awarded by the Last Flame engineer
+// Last Flame Glory data (§13.2.2) — paid by modes/lastFlame `syncBossGlory` / `awardBossKill`
 // =============================================================================================
 
 export interface BossGlory {

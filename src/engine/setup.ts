@@ -9,7 +9,9 @@ import { contentHash, getContent } from './content';
 import { drawUpTo, shuffleInFull, starterDeck } from './decks';
 import { chebyshev, quadrantOf, rectContains, sq } from './geometry';
 import { addLog, pieceAtText } from './log';
-import { neutralEnemyCount, neutralPlumeCount } from './modes/lastFlame';
+import { refreshGloamBell } from './modes/gloam';
+import { requestHaunts } from './modes/haunt';
+import { emptyGloryBreakdown, neutralEnemyCount, neutralPlumeCount, truceForNight } from './modes/lastFlame';
 import { captureNightSnapshot } from './modes/vigil';
 import { initStreams, standardStreamNames, streamPick } from './rng';
 import { buildSite, LATER_NIGHT_SITES, GENERATED_SITES } from './sites';
@@ -140,12 +142,16 @@ function emptyState(config: GameConfig, reg: ContentRegistry): GameState {
               total: reg.rules.gloam.closings[size],
               schedule: gloamSchedule(size, config.nights, config.turns_per_night, reg.rules),
               warningRing: null,
+              roundsToNext: null,
             },
-            truce: config.truce !== 'off',
+            truce: truceForNight(config, 1),
             leader: null,
             bountiesPaid: [],
             nextBand: 1,
             bossRounds: config.boss_rounds,
+            gloryBySeat: config.seats.map(() => emptyGloryBreakdown()),
+            tallyPaused: false,
+            creditClock: 0,
           }
         : null,
     toll: { offer: null, chooser: null, active: null, curseReward: false, history: [] },
@@ -297,6 +303,11 @@ function placeScriptedSootlings(ctx: Ctx): void {
   for (const sootling of opening.sootlings) spawnEnemy(ctx, 'sootling', sq(sootling.at), 'setup');
 }
 
+/** Snuff are placed this game: always in Vigil; in Last Flame unless `neutrals` is off. */
+function neutralsOn(s: GameState): boolean {
+  return s.config.mode === 'vigil' || s.config.neutrals !== 'off';
+}
+
 /** The central 4×4 (Last Flame neutrals and its extra Smokestack). */
 function inCentre(s: GameState, p: Pos): boolean {
   const lo = s.board.w / 2 - 2;
@@ -353,18 +364,19 @@ export function plumePlacement(ctx: Ctx, index: number): void {
   belchAll(ctx);
 }
 
+/**
+ * Neutral Plumes (§13.2.5): Plume i goes to quadrant (holder's start quadrant + i), clockwise;
+ * a quadrant without a legal tile passes it on to the next one (all four empty: it is skipped).
+ */
 function placeLastFlamePlumes(ctx: Ctx): void {
   const { s, reg } = ctx;
   const count = neutralPlumeCount(s, ruleDelta(s, 'plumes_per_placement', null));
   const holder = s.players[s.firstLight];
   const start = holder?.startTile ? quadrantOf(holder.startTile, s.board.w, s.board.h) : 0;
   for (let i = 0; i < count; i++) {
-    for (let k = 0; k < 4; k++) {
-      const quadrant = (start + i + k) % 4;
-      if (legalPlumeTiles(s, reg, { quadrant }).length === 0) continue;
-      placePlumes(ctx, { count: 1, source: 'schedule', quadrant });
-      break;
-    }
+    const quadrants = [0, 1, 2, 3].map((k) => (start + i + k) % 4);
+    const quadrant = quadrants.find((q) => legalPlumeTiles(s, reg, { quadrant: q }).length > 0) ?? quadrants[0];
+    placePlumes(ctx, { count: 1, source: 'schedule', quadrant });
   }
 }
 
@@ -381,6 +393,7 @@ export function enterNightSetup(ctx: Ctx): void {
   s.omen = { face: null, omenId: null };
   clearUndo(s);
   if (s.vigil) s.vigil = { ...s.vigil, retryVotes: [], concedeVotes: [] };
+  if (s.lastFlame) s.lastFlame.truce = truceForNight(s.config, s.night);
   clearNight(s);
 
   const keepBoard = s.config.mode === 'last_flame' && s.night > 1;
@@ -400,14 +413,17 @@ export function enterNightSetup(ctx: Ctx): void {
   resetPiecesForNight(s);
   if (s.isBossNight) spawnBoss(ctx, layout.bossAnchor);
   for (const stack of layout.smokestacks) if (!keepBoard) spawnEnemy(ctx, 'smokestack', stack, 'setup');
-  if (!s.isBossNight && s.tier >= 2 && s.config.extra_smokestack) placeExtraSmokestack(ctx, layout.heroStarts);
+  if (!s.isBossNight && s.tier >= 2 && s.config.extra_smokestack && neutralsOn(s)) placeExtraSmokestack(ctx, layout.heroStarts);
   if (siteId === 'first_vigil') placeScriptedSootlings(ctx);
   else if (s.config.mode === 'vigil') placeInitialEnemies(ctx, initialEnemyCount(s), layout.heroStarts);
   else placeLastFlameNeutrals(ctx, initialEnemyCount(s));
   plumePlacement(ctx, 0);
+  requestHaunts(ctx);
+  refreshGloamBell(s);
 
   for (const player of s.players) {
-    player.ready = player.kind !== 'human';
+    // Every seat readies itself; bot seats deploy and Ready through `botChoice` (bots/choices.ts).
+    player.ready = false;
     player.turnEnded = false;
     player.bellUsedThisNight = false;
     player.carryOver = null;

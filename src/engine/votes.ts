@@ -5,8 +5,12 @@
  *
  * Retry is available while `retry_night` is on and the run is not a Daily, during the Night
  * (boss intro to Tally) and from the defeat screen; it restores the night_setup snapshot.
+ *
+ * Last Flame has no votes: a human seat concedes alone and is eliminated at once
+ * (modes/lastFlameEnd `concedeLastFlame`).
  */
 import { addLog } from './log';
+import { concedeLastFlame } from './modes/lastFlameEnd';
 import { endVigil, restoreNightSnapshot } from './modes/vigil';
 import { emit } from './state';
 import type { Ctx } from './state';
@@ -58,9 +62,17 @@ export function validateRetry(s: GameState, a: ActionOf<'retry_night'>): Validat
   return s.nightSnapshot ? validateVote(s, 'retry', a.seat, a.vote) : fail('WRONG_PHASE');
 }
 
+/** Last Flame: a human seat still in the game may concede at once (no vote). */
+function validateLastFlameConcede(s: GameState, a: ActionOf<'concede'>): Validation {
+  const player = s.players[a.seat];
+  if (!player || player.kind !== 'human' || a.vote === false) return fail('INVALID_ACTION');
+  return player.eliminated ? fail('ELIMINATED') : OK;
+}
+
 export function validateConcede(s: GameState, a: ActionOf<'concede'>): Validation {
-  if (s.config.mode !== 'vigil' || !s.vigil) return fail('MODE_ONLY', { mode: 'Vigil' });
   if (s.result) return fail('GAME_OVER');
+  if (s.config.mode === 'last_flame' && s.lastFlame) return validateLastFlameConcede(s, a);
+  if (s.config.mode !== 'vigil' || !s.vigil) return fail('MODE_ONLY', { mode: 'Vigil' });
   return validateVote(s, 'concede', a.seat, a.vote);
 }
 
@@ -88,5 +100,6 @@ export function applyRetry(ctx: Ctx, a: ActionOf<'retry_night'>): void {
 }
 
 export function applyConcede(ctx: Ctx, a: ActionOf<'concede'>): void {
-  if (castVote(ctx, 'concede', a.seat, a.vote)) endVigil(ctx, 'conceded', 'The Vigil was abandoned.');
+  if (ctx.s.config.mode === 'last_flame') concedeLastFlame(ctx, a.seat);
+  else if (castVote(ctx, 'concede', a.seat, a.vote)) endVigil(ctx, 'conceded', 'The Vigil was abandoned.');
 }

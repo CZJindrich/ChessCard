@@ -39,7 +39,9 @@ import {
   validateSkipPick,
 } from './choices';
 import { getContent } from './content';
-import { advance, pendingAutomation } from './phases';
+import { applyHaunt, validateHaunt } from './modes/haunt';
+import { bandScope } from './modes/lastFlame';
+import { advance, pendingAutomation, settleEliminatedTurn } from './phases';
 import { applyUsePower, validateUsePower } from './powers';
 import { refreshIntentTiles } from './snuff';
 import { cloneState, makeCtx } from './state';
@@ -94,7 +96,7 @@ export function validateAction(s: GameState, action: Action, reg: ContentRegistr
     case 'boon_pick':
       return validateBoonPick(s, reg, action);
     case 'haunt':
-      return fail('NOT_ENABLED', { feature: 'Haunting' });
+      return validateHaunt(s, reg, action);
     case 'config_set':
     case 'start_game':
       return fail('WRONG_PHASE');
@@ -144,19 +146,39 @@ function dispatch(ctx: Ctx, action: Action): void {
     case 'boon_pick':
       return applyBoonPick(ctx, action);
     case 'haunt':
+      return applyHaunt(ctx, action);
     case 'config_set':
     case 'start_game':
       return;
   }
 }
 
-/** Validate, then apply to a clone. The input state is never mutated. */
+/**
+ * Validate, then apply to a clone. The input state is never mutated. A player action is one
+ * elimination band (Last Flame); automated steps open their own (per intent, per Tally step).
+ */
 export function applyAction(s: GameState, action: Action, reg: ContentRegistry = getContent()): ApplyResult {
+  return applyWith(s, action, reg, true);
+}
+
+/**
+ * `applyAction` without undo frames, for planners (bots/) that apply thousands of actions to
+ * throwaway states: the result is the same state minus the undo history, at about half the cost.
+ */
+export function simulateAction(s: GameState, action: Action, reg: ContentRegistry = getContent()): ApplyResult {
+  return applyWith(s, action, reg, false);
+}
+
+function applyWith(s: GameState, action: Action, reg: ContentRegistry, keepUndo: boolean): ApplyResult {
   const validation = validateAction(s, action, reg);
   if (!validation.ok) return validation;
   const ctx = makeCtx(cloneState(s), reg);
-  const snapshot = isUndoable(action) ? snapshotOf(s) : null;
-  dispatch(ctx, action);
+  const snapshot = keepUndo && isUndoable(action) ? snapshotOf(s) : null;
+  if (action.type === 'advance') dispatch(ctx, action);
+  else {
+    bandScope(ctx, () => dispatch(ctx, action));
+    settleEliminatedTurn(ctx);
+  }
   refreshBossWatch(ctx);
   if (snapshot) recordUndo(ctx, s, action, snapshot);
   refreshIntentTiles(ctx.s);

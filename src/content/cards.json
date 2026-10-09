@@ -238,7 +238,7 @@
     "id": "call_the_squire",
     "name": "Call the Squire",
     "type": "summon",
-    "cost": 2,
+    "cost": 1,
     "rarity": "common",
     "class": "sconce_paladin",
     "starter": true,
