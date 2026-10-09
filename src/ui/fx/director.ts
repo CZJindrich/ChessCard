@@ -15,7 +15,8 @@ export interface DirectedStep {
   duration: number;
 }
 
-const MAX_GLOAM_PUFFS = 48;
+/** Tiles of a closing ring that get fog (6 puffs each keeps the sweep under the particle cap). */
+const MAX_GLOAM_PUFFS = 36;
 
 function pieceCentre(state: GameState, pieceId: string): BoardPoint | null {
   const piece = state.pieces[pieceId];
@@ -172,7 +173,7 @@ function gloamFx(e: Extract<GameEvent, { type: 'gloam_closed' }>, before: GameSt
     .map((t) => {
       const angle = Math.atan2(t.x + 0.5 - cx, t.y + 0.5 - cy);
       const turn = (angle + Math.PI) / (2 * Math.PI);
-      return { kind: 'burst', burst: 'plume_small', at: tileCentre(t), delay: turn * sweep, color: COLORS.gloam } as FxCommand;
+      return { kind: 'burst', burst: 'gloam', at: tileCentre(t), delay: turn * sweep } as FxCommand;
     });
 }
 

@@ -86,20 +86,20 @@ export function ScreenFx({ bus, reducedMotion, renderCard }: ScreenFxProps): Rea
     <div className="ww-fx-screen" aria-hidden="true">
       {vignette && (
         <div
-          key={vignette.id}
+          key={`v${vignette.id}`}
           className={`ww-fx-vignette${reducedMotion ? ' ww-fx-vignette--fade' : ''}`}
           style={{ '--ww-fx-dur': `${vignette.spec.duration}ms`, '--ww-fx-strength': vignette.spec.strength } as CSSProperties}
         />
       )}
       {flash && (
         <div
-          key={flash.id}
+          key={`f${flash.id}`}
           className={`ww-fx-flash-screen ww-fx-flash-screen--${flash.spec.tone}${reducedMotion ? ' ww-fx-flash-screen--fade' : ''}`}
           style={{ '--ww-fx-dur': `${flash.spec.duration}ms` } as CSSProperties}
         />
       )}
       {flights.map((f) => (
-        <CardFlight key={f.id} flight={f.spec} reducedMotion={reducedMotion}>
+        <CardFlight key={`c${f.id}`} flight={f.spec} reducedMotion={reducedMotion}>
           {renderCard?.(f.spec)}
         </CardFlight>
       ))}

@@ -104,10 +104,19 @@ function useRestriction(view: CoachView | null, script: TutorialScript | null, l
       e.stopImmediatePropagation();
       live.current.onBlocked();
     };
+    // Dragging a card plays it without a click: stop drags of cards off the line too.
+    const onPointerDown = (e: PointerEvent): void => {
+      if (!(e.target instanceof Element) || !e.target.closest('.ww-hand-card')) return;
+      if (allowedTarget(e.target, e.clientX, e.clientY)) return;
+      e.preventDefault();
+      e.stopImmediatePropagation();
+    };
     window.addEventListener('click', onClick, true);
+    window.addEventListener('pointerdown', onPointerDown, true);
     window.addEventListener('keydown', onKey, true);
     return () => {
       window.removeEventListener('click', onClick, true);
+      window.removeEventListener('pointerdown', onPointerDown, true);
       window.removeEventListener('keydown', onKey, true);
     };
   }, [locator]);

@@ -23,6 +23,7 @@ export type BurstKind =
   | 'heal'
   | 'plume'
   | 'plume_small'
+  | 'gloam'
   | 'summon'
   | 'wax_chips'
   | 'embers';

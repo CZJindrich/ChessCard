@@ -80,6 +80,10 @@ function burstDrafts(kind: BurstKind, x: number, y: number, color: Rgb | undefin
       return plumeColumn(x, y, r, 0.55)
         .slice(0, 8)
         .map((d) => (color ? { ...d, color } : d));
+    case 'gloam':
+      return plumeColumn(x, y, r, 0.7)
+        .slice(0, 6)
+        .map((d) => ({ ...d, size: (d.size ?? 0.1) * 2.2, alpha: 0.55, color: r() < 0.5 ? COLORS.gloam : COLORS.plume }));
     case 'summon':
       return summonSparkles(x, y, color ?? COLORS.candleGold, r);
     case 'wax_chips':
