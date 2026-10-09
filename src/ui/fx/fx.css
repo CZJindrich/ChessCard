@@ -1,0 +1,209 @@
+/*
+ * FX layers (GDD §16.5, §16.9, §16.10): the darkness canvas (over the floor only), the particle
+ * canvas, the screen flash, the Dread vignette and the card flight with its cracking wax seal.
+ * Only transform and opacity animate.
+ */
+
+.ww-fx-darkness {
+  position: absolute;
+  pointer-events: none;
+}
+
+.ww-fx-particles {
+  position: absolute;
+  z-index: 6;
+  pointer-events: none;
+}
+
+.ww-fx-screen {
+  position: absolute;
+  inset: 0;
+  z-index: 60;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+/* ---------------------------------------------------------------------------- flash */
+
+.ww-fx-flash-screen {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  animation: ww-fx-flash var(--ww-fx-dur, 420ms) ease-out both;
+}
+
+.ww-fx-flash-screen--white {
+  background: radial-gradient(ellipse 70% 70% at 50% 45%, rgba(255, 252, 240, 0.95), rgba(255, 243, 196, 0.55) 60%, rgba(255, 243, 196, 0.25));
+}
+
+.ww-fx-flash-screen--gold {
+  background: radial-gradient(ellipse 80% 70% at 50% 100%, rgba(255, 216, 107, 0.55), rgba(255, 216, 107, 0.12) 70%, transparent);
+}
+
+@keyframes ww-fx-flash {
+  0% {
+    opacity: 0;
+  }
+  12% {
+    opacity: 0.62;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+.ww-fx-flash-screen--fade {
+  animation-name: ww-fx-flash-fade;
+  animation-timing-function: ease-in-out;
+}
+
+@keyframes ww-fx-flash-fade {
+  0%,
+  100% {
+    opacity: 0;
+  }
+  45% {
+    opacity: 0.2;
+  }
+}
+
+/* ---------------------------------------------------------------------------- Dread vignette */
+
+.ww-fx-vignette {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  background: radial-gradient(ellipse 72% 68% at 50% 50%, transparent 52%, rgba(94, 52, 150, 0.55) 82%, rgba(60, 24, 104, 0.85));
+  animation: ww-fx-vignette var(--ww-fx-dur, 600ms) ease-out both;
+}
+
+@keyframes ww-fx-vignette {
+  0% {
+    opacity: 0;
+  }
+  25% {
+    opacity: calc(var(--ww-fx-strength, 0.7) * 1);
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+.ww-fx-vignette--fade {
+  animation-timing-function: ease-in-out;
+}
+
+/* ---------------------------------------------------------------------------- card flight */
+
+.ww-fx-card-flight {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 61;
+  filter: drop-shadow(0 0.6rem 1rem rgba(0, 0, 0, 0.6));
+  will-change: transform, opacity;
+}
+
+.ww-fx-seal {
+  position: fixed;
+  z-index: 61;
+  width: 2.6rem;
+  height: 2.6rem;
+  translate: -50% -50%;
+}
+
+.ww-fx-seal__glow {
+  position: absolute;
+  inset: -1.4rem;
+  border-radius: 50%;
+  background: radial-gradient(circle, color-mix(in srgb, var(--ww-seal-accent, #f4b942) 70%, white) 0%, color-mix(in srgb, var(--ww-seal-accent, #f4b942) 45%, transparent) 35%, transparent 70%);
+  animation: ww-fx-seal-glow 420ms ease-out both;
+}
+
+@keyframes ww-fx-seal-glow {
+  0% {
+    opacity: 0;
+    transform: scale(0.4);
+  }
+  30% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.35);
+  }
+}
+
+.ww-fx-seal__half {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 50% 50%, transparent 38%, rgba(255, 220, 160, 0.35) 40%, transparent 46%),
+    radial-gradient(circle at 34% 30%, #c4434a, #8e2228 58%, #5a1e22);
+  box-shadow: inset 0 0 0 2px rgba(60, 10, 14, 0.6);
+}
+
+.ww-fx-seal__half--l {
+  clip-path: polygon(0 0, 52% 0, 44% 22%, 56% 40%, 42% 62%, 54% 80%, 46% 100%, 0 100%);
+  animation: ww-fx-seal-left 420ms cubic-bezier(0.3, 0.6, 0.4, 1) both;
+}
+
+.ww-fx-seal__half--r {
+  clip-path: polygon(52% 0, 100% 0, 100% 100%, 46% 100%, 54% 80%, 42% 62%, 56% 40%, 44% 22%);
+  animation: ww-fx-seal-right 420ms cubic-bezier(0.3, 0.6, 0.4, 1) both;
+}
+
+@keyframes ww-fx-seal-left {
+  0% {
+    transform: scale(1.4);
+    opacity: 0;
+  }
+  20% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  45% {
+    transform: none;
+    opacity: 1;
+  }
+  100% {
+    transform: translate(-0.7rem, 0.5rem) rotate(-24deg);
+    opacity: 0;
+  }
+}
+
+@keyframes ww-fx-seal-right {
+  0% {
+    transform: scale(1.4);
+    opacity: 0;
+  }
+  20% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  45% {
+    transform: none;
+    opacity: 1;
+  }
+  100% {
+    transform: translate(0.7rem, 0.5rem) rotate(24deg);
+    opacity: 0;
+  }
+}
+
+.ww-fx-seal--still .ww-fx-seal__half,
+.ww-fx-seal--still .ww-fx-seal__glow {
+  animation-name: ww-fx-seal-fade;
+}
+
+@keyframes ww-fx-seal-fade {
+  0%,
+  100% {
+    opacity: 0;
+  }
+  40% {
+    opacity: 0.8;
+  }
+}

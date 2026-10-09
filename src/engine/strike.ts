@@ -22,7 +22,8 @@ import type { MoveDest } from './geometry';
 import { addLog, pieceAtText, pieceName } from './log';
 import { popPlume } from './snuff';
 import { createUnit, summonTileTest, unitLimitReached } from './spawn';
-import { boardQuery, emit, isEnemyOfSeat, isOver, pieceAt, plumeAt, ruleDelta, ruleValue, tileAt } from './state';
+import { isTruceActive } from './modes/lastFlame';
+import { boardQuery, emit, isEnemyOfSeat, isOver, isRivalOf, pieceAt, plumeAt, ruleDelta, ruleValue, tileAt } from './state';
 import type { Ctx } from './state';
 import type { AttackDef, ContentRegistry, GameState, Pattern, Piece, Pos, PushPreview, StrikeOption } from './types';
 
@@ -37,7 +38,8 @@ export function pieceProfile(s: GameState, reg: ContentRegistry, p: Piece): Piec
     const def = reg.heroes.byId[p.defId];
     if (!def) return null;
     const flying = p.flying || def.move.flying || (p.owner !== null && ruleValue(s, 'hero_flying', p.owner) === true);
-    return { move: flying && def.move.type === 'slide' ? { ...def.move, flying: true } : def.move, attack: def.attack };
+    const canFly = def.move.type === 'slide' || def.move.type === 'step';
+    return { move: flying && canFly ? { ...def.move, flying: true } : def.move, attack: def.attack };
   }
   if (p.kind === 'unit') {
     const def = reg.units.byId[p.defId];
@@ -75,8 +77,10 @@ export interface StrikePlan {
   plumeId: string | null;
 }
 
+/** A piece this striker may hit: an enemy, never a rival during a truce (§13.2.3). */
 function foe(s: GameState, striker: Piece, p: Piece | null | undefined): p is Piece {
-  return !!p && !p.smoldering && isEnemyOfSeat(s, striker.owner, p);
+  if (!p || p.smoldering || !isEnemyOfSeat(s, striker.owner, p)) return false;
+  return !(isTruceActive(s) && isRivalOf(s, striker.owner, p));
 }
 
 /** Every legal strike target of a piece from its current tile (§6.2). Ignores pips and turn. */

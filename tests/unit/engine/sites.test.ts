@@ -156,7 +156,8 @@ describe('Night order and tiers (§13.3.1, §13.3.3)', () => {
     }
     expect(s.isBossNight).toBe(true);
     expect(s.tier).toBe(3);
-    expect(Object.values(s.pieces).filter((p) => p.side === 'snuff')).toHaveLength(1);
+    expect(Object.values(s.pieces).filter((p) => p.kind === 'enemy')).toHaveLength(1);
+    expect(Object.values(s.pieces).filter((p) => p.kind === 'boss')).toHaveLength(1);
     expect(s.roundsThisNight).toBeNull();
   });
 });

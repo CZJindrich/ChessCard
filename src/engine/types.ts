@@ -1425,6 +1425,11 @@ export interface Piece {
   burn: number;
   dazed: boolean;
   charm: CardInstance | null;
+  /**
+   * Seat whose card the attached Charm is (it returns to that seat's discard pile). Absent or
+   * null = the piece's owner. Vigil Charms can sit on an ally's piece.
+   */
+  charmSeat?: number | null;
   movesLeft: number;
   strikesLeft: number;
   /** Arrived since its owner's last seat turn: no actions until then. */
@@ -1585,15 +1590,23 @@ export interface BossState {
   id: string;
   pieceId: string;
   phase: number;
+  /** Guttered King: filled crown sockets (one per CHECKMATE, at most 3). */
   crowns: number;
   maxHp: number;
-  /** Guttered King: legal step vectors right now (CHECK at 1-2). */
+  /** Number of legal step vectors right now (Guttered King: CHECK at 1-2, CHECKMATE at 0). */
   escapes: number;
-  /** Damage dealt per seat (Last Flame Glory and tie-breaks). */
+  /** Damage dealt per seat, Checkmate shares included (Last Flame Glory and tie-breaks; may be fractional). */
   damageBySeat: number[];
+  /** Seat credited with the killing blow (null: none, or a shared Checkmate). */
   killerSeat: number | null;
-  /** Hierophant phase 2 cosmetic. */
+  /** Hierophant phase 2+ cosmetic. */
   clapperSwinging: boolean;
+  /** P used for the boss's HP and `byPlayers` summons (§10.1). Absent only in hand-built states. */
+  players?: number;
+  /** The open escape step vectors (UI escape arrows; the other of the 8 are blocked). */
+  escapeDirs?: Dir[];
+  /** Nocturna cosmetic: a Hunger intent is locked (her abdomen brightens). */
+  hungry?: boolean;
 }
 
 export interface GloamClosing {
@@ -1704,7 +1717,9 @@ export type GloryReason =
   | 'boss_damage'
   | 'boss_kill'
   | 'survival'
-  | 'hero_fell';
+  | 'hero_fell'
+  /** An `add_glory` effect op (mods, bosses). */
+  | 'effect';
 
 export interface Standing {
   seat: number;
@@ -1746,6 +1761,8 @@ export interface UndoFrame {
 export interface UndoState {
   /** Frames for the current seat turn only; cleared at commit points and seat changes. */
   frames: UndoFrame[];
+  /** Number of undoable actions (kept in views, where `frames` is emptied). */
+  depth: number;
 }
 
 export interface GameState {
@@ -1822,13 +1839,14 @@ export type Action =
   | { type: 'end_turn'; seat: number }
   | { type: 'undo'; seat: number }
   | { type: 'claim_turn'; seat: number }
-  | { type: 'concede'; seat: number }
+  /** `vote: false` declines (cancels) a running co-op vote; absent or true agrees. */
+  | { type: 'concede'; seat: number; vote?: boolean }
   | { type: 'deploy'; seat: number; pieceId: string; to: Pos }
   | { type: 'ready'; seat: number }
   | { type: 'choose_toll'; seat: number; tollId: string }
   | { type: 'carry_over'; seat: number; keep: string[] }
   | { type: 'haunt'; seat: number; at: Pos | null }
-  | { type: 'retry_night'; seat: number }
+  | { type: 'retry_night'; seat: number; vote?: boolean }
   | { type: 'draft_pick'; seat: number; cardId: string }
   | { type: 'skip_pick'; seat: number }
   | { type: 'boon_pick'; seat: number; boon: BoonDef['id'] | null; args: BoonArgs }
@@ -1877,7 +1895,8 @@ export type DamageCause =
 
 export type DeathCause = DamageCause | 'melt' | 'gloam_wick' | 'boss_death' | 'dawn' | 'transform';
 
-export type DreadCause = 'candle_hit' | 'candle_snuffed' | 'hero_fell' | 'self_relight' | 'boss_toll' | 'dawn';
+/** `effect`: an `add_dread` effect op (mods, bosses). */
+export type DreadCause = 'candle_hit' | 'candle_snuffed' | 'hero_fell' | 'self_relight' | 'boss_toll' | 'dawn' | 'effect';
 
 export type RelightCause = 'relight' | 'self' | 'dawn' | 'card' | 'respawn';
 
@@ -2045,12 +2064,42 @@ export interface EffectPreview {
   push: PushPreview[];
   area: Pos[];
   reversedIntentTiles: Pos[] | null;
+  /** Card / Power moves other than pushes: slides, teleports, swaps (Sunshield Charge, Shadowstep). */
+  moves?: Array<{ pieceId: string; from: Pos; to: Pos; kind: MoveKind }>;
+  /** Statuses gained (Ward, Burn, Dazed). */
+  statuses?: Array<{ pieceId: string; status: StatusId }>;
+  /** The Charm that would attach. */
+  charm?: { pieceId: string; cardId: string } | null;
+  /** Pieces that would change into another piece (Moonlit Hex). */
+  transforms?: Array<{ pieceId: string; toDefId: string }>;
+  /** Smoldering heroes that would be relit (Kindle Hope). */
+  relit?: string[];
+  /** Pieces that would die. */
+  deaths?: string[];
 }
 
 export interface TargetOption {
   choice: CardTargetChoice;
   pos: Pos;
   preview: EffectPreview;
+}
+
+/**
+ * Multi-step targeting query for `cardTargets` / `powerTargets`: the chosen mode ("choose one"
+ * cards) and the picks made so far. The answer lists the options for pick `chosen.length`.
+ */
+export interface TargetQuery {
+  mode?: number;
+  chosen?: CardTargetChoice[];
+}
+
+/** Per-mode playability of a "choose one" card (shown before a mode is picked). */
+export interface CardModeOption {
+  label: string;
+  text: string;
+  playable: boolean;
+  reason?: ReasonCode;
+  params?: ReasonParams;
 }
 
 export interface CardTargetInfo {
@@ -2060,7 +2109,17 @@ export interface CardTargetInfo {
   cost: number;
   /** "Choose one" cards: labels per mode (index = `mode` in play_card). */
   modes: string[] | null;
-  /** 0-based index of the pick these options are for, and the total picks. */
+  /** "Choose one" cards queried without a mode: playability of each mode. */
+  modeOptions?: CardModeOption[];
+  /**
+   * The picks made so far can be played as they are (every required pick made, and any remaining
+   * optional pick has no valid choice). Absent on mode-less answers of "choose one" cards.
+   */
+  complete?: boolean;
+  /**
+   * 0-based index of the pick these options are for, and the total picks. `optional` = this pick
+   * is beyond the required ones (it may be left out only when `targets` is empty).
+   */
   step: number;
   steps: number;
   optional: boolean;

@@ -1,13 +1,13 @@
 /**
  * Seat choices outside piece play: deploy / ready (night_setup), choose_toll, claim_turn and
- * end_turn, concede, carry_over (dawn), and the Chandlery's draft_pick / skip_pick / boon_pick.
+ * end_turn, carry_over (dawn), and the Chandlery's draft_pick / skip_pick / boon_pick.
+ * Retry and Concede votes live in votes.ts.
  */
 import { checkTurn } from './actions';
 import { makeCard } from './decks';
-import { baseEnv, runEffects } from './effects';
+import { gainHeirloom } from './heirlooms';
 import { sqName } from './geometry';
 import { addLog, pieceName } from './log';
-import { endVigil } from './modes/vigil';
 import { applyToll, claimTurn, endSeatTurn } from './phases';
 import { canDeployTo } from './setup';
 import { emit, getPiece, pieceAt, unitsOf } from './state';
@@ -99,23 +99,6 @@ export function validateEndTurn(s: GameState, a: ActionOf<'end_turn'>): Validati
 
 export function applyEndTurn(ctx: Ctx, a: ActionOf<'end_turn'>): void {
   endSeatTurn(ctx, a.seat);
-}
-
-/** Vigil: solo concedes at once; co-op needs every human seat's vote (§13.1.8). */
-export function validateConcede(s: GameState, a: ActionOf<'concede'>): Validation {
-  if (s.config.mode !== 'vigil' || !s.vigil) return fail('MODE_ONLY', { mode: 'Vigil' });
-  const player = seatPlayer(s, a.seat);
-  if (!player || player.kind !== 'human') return fail('INVALID_ACTION');
-  return s.vigil.concedeVotes.includes(a.seat) ? fail('INVALID_ACTION') : OK;
-}
-
-export function applyConcede(ctx: Ctx, a: ActionOf<'concede'>): void {
-  const vigil = ctx.s.vigil;
-  if (!vigil) return;
-  vigil.concedeVotes.push(a.seat);
-  emit(ctx, { type: 'vote_changed', vote: 'concede', seats: vigil.concedeVotes.slice() });
-  const humans = ctx.s.players.filter((p) => p.kind === 'human').map((p) => p.seat);
-  if (humans.every((seat) => vigil.concedeVotes.includes(seat))) endVigil(ctx, 'conceded', 'The Vigil was abandoned.');
 }
 
 // =============================================================================================
@@ -214,26 +197,16 @@ export function validateBoonPick(s: GameState, reg: ContentRegistry, a: ActionOf
   }
 }
 
-/**
- * Record the Boon. Temper and Prune change the deck; an Heirloom is added to the hero and its
- * passive `modify_rule` effects are registered for the game. E2 applies the rest (Brass Thimble's
- * max HP, the Cloak's flying, Ever-Burning Wick at night start is already triggered by phases.ts).
- */
+/** Record the Boon: an Heirloom joins the hero, Temper marks a card, Prune removes cards. */
 export function applyBoonPick(ctx: Ctx, a: ActionOf<'boon_pick'>): void {
-  const { s, reg } = ctx;
+  const { s } = ctx;
   const player = s.players[a.seat];
   const ch = player.chandlery;
   if (!ch) return;
   ch.boonDone = true;
   ch.boonPicked = a.boon;
   if (a.boon === 'heirloom' && a.args.heirloomId) {
-    const id = a.args.heirloomId;
-    player.heirlooms.push(id);
-    emit(ctx, { type: 'heirloom_gained', seat: a.seat, heirloomId: id });
-    const def = reg.heirlooms.byId[id];
-    if (def?.kind === 'passive') {
-      runEffects(ctx, def.effects, baseEnv({ seat: a.seat, ruleSource: { kind: 'heirloom', id }, defaultDuration: 'game' }));
-    }
+    gainHeirloom(ctx, a.seat, a.args.heirloomId);
   } else if (a.boon === 'temper') {
     const card = ownedCards(player).find((c) => c.uid === a.args.cardUid);
     if (card) card.tempered = true;

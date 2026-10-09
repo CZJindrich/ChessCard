@@ -7,12 +7,14 @@
  * effect (Dread changes end the game at once), so callers stop when `isOver(ctx.s)`.
  */
 import { onBossDamaged, onBossDeath } from './bosses';
+import { returnCharm } from './charms';
 import { runCharmTrigger, runTraitTrigger } from './effects';
-import { pullPath, pushPath, sqName } from './geometry';
+import { footprint, pullPath, pushPath, sqName } from './geometry';
+import type { DisplacementPath } from './geometry';
 import { addLog, pieceAtText, pieceName } from './log';
-import { gloryForSnuffKill, onHeroFellLastFlame } from './modes/lastFlame';
-import { changeDread } from './modes/vigil';
-import { boardQuery, emit, isOver, removePiece, tileAt } from './state';
+import { gloryForSnuffKill, isTruceActive, onHeroFellLastFlame } from './modes/lastFlame';
+import { atomicEffect, changeDread } from './modes/vigil';
+import { boardQuery, emit, isOver, isRivalOf, removePiece, tileAt } from './state';
 import type { Ctx } from './state';
 import type {
   ContentRegistry,
@@ -112,8 +114,13 @@ function recordDamage(ctx: Ctx, target: Piece, amount: number, src: DamageSource
 /**
  * One damage instance (§6.3, §6.5). Ward cancels the whole instance and breaks. Smoldering Wicks
  * take only Gloam damage; bosses never take Snuff-attack damage. A Candle hit adds Dread.
+ * The instance and what it sets off (death, Dread, Riposte) are one atomic effect (§13.1.5).
  */
 export function dealDamage(ctx: Ctx, target: Piece, amount: number, src: DamageSource): DamageOutcome {
+  return atomicEffect(ctx, () => damageInstance(ctx, target, amount, src));
+}
+
+function damageInstance(ctx: Ctx, target: Piece, amount: number, src: DamageSource): DamageOutcome {
   const { s } = ctx;
   if (isOver(s) || amount <= 0 || s.pieces[target.id] !== target) return NO_DAMAGE;
   if (target.smoldering && src.cause !== 'gloam') return NO_DAMAGE;
@@ -135,6 +142,7 @@ export function dealDamage(ctx: Ctx, target: Piece, amount: number, src: DamageS
     addLog(ctx, `Ward absorbs the hit on ${pieceAtText(ctx.reg, target)}.`);
     return { dealt: 0, blocked: true, killed: false };
   }
+  const hpBefore = target.hp;
   target.hp = Math.max(0, target.hp - amount);
   const lethal = target.hp === 0;
   emit(ctx, {
@@ -152,14 +160,12 @@ export function dealDamage(ctx: Ctx, target: Piece, amount: number, src: DamageS
   if (target.kind === 'candle') {
     changeDread(ctx, ctx.reg.rules.dread.candleHit, 'candle_hit', `The ${sqName(target.pos)} Vigil Candle was struck.`);
   }
-  if (target.kind === 'boss') onBossDamaged(ctx, target, amount, src.seat);
+  if (target.kind === 'boss') onBossDamaged(ctx, target, hpBefore - target.hp, src.seat);
   if (isOver(s)) return { dealt: amount, blocked: false, killed: false };
-  if (lethal) {
-    killPiece(ctx, target, { cause: src.cause, seat: src.seat, sourceId: src.sourceId });
-    return { dealt: amount, blocked: false, killed: true };
-  }
-  runCharmTrigger(ctx, target, 'damaged', { attackerId: src.sourceId, sourceKind: src.sourceKind });
-  return { dealt: amount, blocked: false, killed: false };
+  if (lethal) killPiece(ctx, target, { cause: src.cause, seat: src.seat, sourceId: src.sourceId });
+  // A felled hero stays on the board as a Wick and keeps its Charm: Riposte answers the fatal hit too.
+  if (!isOver(s)) runCharmTrigger(ctx, target, 'damaged', { attackerId: src.sourceId, sourceKind: src.sourceKind });
+  return { dealt: amount, blocked: false, killed: lethal };
 }
 
 // =============================================================================================
@@ -191,21 +197,6 @@ function emitDied(ctx: Ctx, p: Piece, info: KillInfo): void {
     killerSeat: info.seat,
     cause: info.cause,
   });
-}
-
-/** Return a Charm to its owner's discard pile (§7.1). */
-export function returnCharm(ctx: Ctx, p: Piece): void {
-  if (!p.charm) return;
-  const owner = p.owner !== null ? ctx.s.players[p.owner] : undefined;
-  const def = ctx.reg.cards.byId[p.charm.id]?.charm;
-  if (def) {
-    p.maxHp = Math.max(1, p.maxHp - def.maxHp);
-    p.hp = Math.min(p.hp, p.maxHp);
-    p.atk = Math.max(0, p.atk - def.atk);
-  }
-  if (owner) owner.discard.push(p.charm);
-  p.charm = null;
-  emit(ctx, { type: 'charm_changed', pieceId: p.id, cardId: null });
 }
 
 function smolderHero(ctx: Ctx, hero: Piece): void {
@@ -370,11 +361,15 @@ export function clearStatuses(ctx: Ctx, p: Piece): void {
 // Movement hazards
 // =============================================================================================
 
-/** After any movement ends (move, push, pull, swap, Take, card move): Hot Wax (§5.4). */
+/** Hot Wax under any tile of the piece's footprint. */
+export function standsOnHotWax(ctx: Ctx, p: Piece): boolean {
+  return footprint(p.pos, p.size).some((t) => tileAt(ctx.s, t)?.type === 'hot_wax');
+}
+
+/** After any movement ends (move, push, pull, swap, Take, card move, boss step): Hot Wax (§5.4), one instance. */
 export function afterMoveEnd(ctx: Ctx, p: Piece, creditSeat: number | null): void {
-  if (isOver(ctx.s) || ctx.s.pieces[p.id] !== p || p.size > 1) return;
-  const tile = tileAt(ctx.s, p.pos);
-  if (tile?.type !== 'hot_wax' || !takesHotWax(ctx.reg, p)) return;
+  if (isOver(ctx.s) || ctx.s.pieces[p.id] !== p) return;
+  if (!standsOnHotWax(ctx, p) || !takesHotWax(ctx.reg, p)) return;
   const amount = ctx.reg.tiles.byId.hot_wax?.damage ?? 1;
   dealDamage(ctx, p, amount, { cause: 'hot_wax', sourceKind: 'hazard', sourceId: null, seat: creditSeat });
 }
@@ -395,21 +390,27 @@ function bump(ctx: Ctx, p: Piece, src: DisplaceSource): void {
   dealDamage(ctx, p, ctx.reg.rules.bumpDamage, { cause: 'bump', sourceKind: 'hazard', sourceId: src.sourceId, seat: src.credit });
 }
 
-function finishDisplacement(
-  ctx: Ctx,
-  p: Piece,
-  from: Pos,
-  path: Pos[],
-  bumpAt: { at: Pos; pieceId: string | null } | null,
-  kind: 'push' | 'pull',
-  src: DisplaceSource,
-): void {
+/**
+ * Truce (§6.4): a player's push or pull that would bump a rival piece stops short without the
+ * bump, and nothing bumps a rival who is being displaced.
+ */
+function truceSparesBump(ctx: Ctx, p: Piece, bumpAt: { at: Pos; pieceId: string | null }, src: DisplaceSource): boolean {
+  if (src.displacer === null || !isTruceActive(ctx.s)) return false;
+  const blocker = bumpAt.pieceId ? ctx.s.pieces[bumpAt.pieceId] : undefined;
+  return isRivalOf(ctx.s, src.displacer, p) || (blocker !== undefined && isRivalOf(ctx.s, src.displacer, blocker));
+}
+
+function finishDisplacement(ctx: Ctx, p: Piece, from: Pos, result: DisplacementPath, kind: 'push' | 'pull', src: DisplaceSource): void {
+  const path = result.path;
+  const bumpAt = result.bump && !truceSparesBump(ctx, p, result.bump, src) ? result.bump : null;
   emit(ctx, { type: 'piece_moved', pieceId: p.id, from, to: p.pos, kind, path, ...(bumpAt ? { bump: bumpAt } : {}) });
   if (src.displacer !== null) p.lastDisplacedBy = src.displacer;
   if (bumpAt) {
-    bump(ctx, p, src);
-    const blocker = bumpAt.pieceId ? ctx.s.pieces[bumpAt.pieceId] : undefined;
-    if (blocker) bump(ctx, blocker, src);
+    atomicEffect(ctx, () => {
+      bump(ctx, p, src);
+      const blocker = bumpAt.pieceId ? ctx.s.pieces[bumpAt.pieceId] : undefined;
+      if (blocker) bump(ctx, blocker, src);
+    });
   }
   if (path.length > 0) afterMoveEnd(ctx, p, src.credit);
 }
@@ -421,7 +422,7 @@ export function pushPiece(ctx: Ctx, p: Piece, dir: Dir, distance: number, src: D
   const from = p.pos;
   const result = pushPath(boardQuery(ctx.s), from, dir, distance);
   p.pos = result.end;
-  finishDisplacement(ctx, p, from, result.path, result.bump, 'push', src);
+  finishDisplacement(ctx, p, from, result, 'push', src);
 }
 
 /** Pull toward a source; stops adjacent to it (§6.4). */
@@ -431,7 +432,7 @@ export function pullPiece(ctx: Ctx, p: Piece, source: Piece, distance: number, s
   const from = p.pos;
   const result = pullPath(boardQuery(ctx.s), from, source.pos, source.size, distance);
   p.pos = result.end;
-  finishDisplacement(ctx, p, from, result.path, result.bump, 'pull', src);
+  finishDisplacement(ctx, p, from, result, 'pull', src);
 }
 
 /** Exchange two pieces' tiles; locked intents move with their attackers (§6.4). */

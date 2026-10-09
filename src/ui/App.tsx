@@ -10,7 +10,7 @@ import { applyPresentation } from './app/presentationEffects';
 import { useStore } from './app/store';
 import { Modal } from './components/Modal';
 import { ToastViewport } from './components/ToastViewport';
-import { GameScreenPlaceholder } from './game/GameScreenPlaceholder';
+import { GameScreen } from './game/GameScreen';
 import { CodexScreen } from './screens/codex/CodexScreen';
 import { HeroPickerScreen } from './screens/HeroPickerScreen';
 import { HowToPlayScreen } from './screens/howto/HowToPlayScreen';
@@ -20,8 +20,6 @@ import { SettingsScreen } from './screens/settings/SettingsScreen';
 import { SetupScreen } from './screens/setup/SetupScreen';
 import { TitleScreen } from './screens/TitleScreen';
 
-/** The game route's screen. The game-screen engineer swaps the placeholder for the real one here. */
-const GameRouteScreen = GameScreenPlaceholder;
 
 function ScreenRouter({ route }: { route: Route }): ReactElement {
   switch (route.screen) {
@@ -40,7 +38,7 @@ function ScreenRouter({ route }: { route: Route }): ReactElement {
     case 'lobby':
       return <LobbyScreen route={route} />;
     case 'game':
-      return <GameRouteScreen route={route} />;
+      return <GameScreen route={route} />;
   }
 }
 

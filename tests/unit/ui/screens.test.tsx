@@ -64,7 +64,7 @@ describe('Hero picker', () => {
     const game = currentGame(app);
     expect(game.config).toMatchObject({ mode: 'vigil', tutorial: true, seed: 'wick-test01' });
     expect(game.config.seats[0].hero).toBe('sconce_paladin');
-    expect(screen.getByTestId('game-placeholder')).toBeTruthy();
+    expect(screen.getByTestId('game-screen')).toBeTruthy();
   });
 
   it('shows the Last Flame primer the first time', () => {
@@ -272,7 +272,7 @@ describe('Settings', () => {
   });
 });
 
-describe('Lobby and game placeholder', () => {
+describe('Lobby and game screen', () => {
   it('normalises a typed room code and explains that online play is not wired yet', () => {
     const app = renderApp({ route: { screen: 'lobby', role: 'join' } });
     const input = screen.getByRole('textbox', { name: 'Room code' });
@@ -282,10 +282,12 @@ describe('Lobby and game placeholder', () => {
     expect(app.services.toasts.get()[0]?.title).toBe('Online play is not connected in this build');
   });
 
-  it('goes back to the title from the game placeholder', () => {
+  it('goes back to the title from the game menu', () => {
     const app = renderApp({ route: { screen: 'hero_pick', mode: 'quick_play' } });
     fireEvent.click(screen.getAllByRole('button', { name: /^Play as / })[0]);
-    fireEvent.click(screen.getByRole('button', { name: 'Main Menu' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Game menu' }));
+    fireEvent.click(screen.getByRole('button', { name: /Main Menu/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Leave to Main Menu' }));
     expect(app.services.nav.get().stack).toEqual([{ screen: 'title' }]);
   });
 

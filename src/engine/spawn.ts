@@ -2,11 +2,11 @@
  * Piece creation: heroes, Wickfolk units, Snuff enemies, Vigil Candles, and the placement
  * routine (GDD §9.5) that every anchored spawn, summon or teleport uses.
  */
-import { chebyshev, compareReadingOrder, isOpenTile } from './geometry';
+import { compareReadingOrder, footprintDistance, isOpenTile } from './geometry';
 import { addLog, pieceAtText } from './log';
 import { boardQuery, emit, heroOf, newId, nextOrder, plumeAt, unitsOf } from './state';
 import type { Ctx } from './state';
-import type { ContentRegistry, EnemyDef, GameConfig, GameEvent, GameState, Piece, PieceKind, Pos, Side } from './types';
+import type { BossDef, ContentRegistry, EnemyDef, GameConfig, GameEvent, GameState, Piece, PieceKind, Pos, Side } from './types';
 
 interface PieceSeed {
   kind: PieceKind;
@@ -37,6 +37,7 @@ function basePiece(s: GameState, seed: PieceSeed): Piece {
     burn: 0,
     dazed: false,
     charm: null,
+    charmSeat: null,
     movesLeft: 0,
     strikesLeft: 0,
     exhausted: false,
@@ -70,6 +71,14 @@ export function createHeroPiece(s: GameState, reg: ContentRegistry, seat: number
 export function createCandle(s: GameState, reg: ContentRegistry, pos: Pos): Piece {
   const hp = reg.overlays.byId.vigil_candle?.hp ?? 3;
   return addPiece(s, basePiece(s, { kind: 'candle', defId: 'vigil_candle', side: 'wick', owner: null, pos, hp, atk: 0, flying: false, structure: true }));
+}
+
+/** A boss piece (2×2, anchored at its lowest file and rank) with its computed max HP (§10.1). */
+export function createBossPiece(s: GameState, def: BossDef, pos: Pos, maxHp: number): Piece {
+  return addPiece(
+    s,
+    basePiece(s, { kind: 'boss', defId: def.id, side: 'snuff', owner: null, pos, hp: maxHp, atk: 0, flying: def.flying, structure: false, size: def.size[0] }),
+  );
 }
 
 export function unitLimitReached(s: GameState, seat: number): boolean {
@@ -147,14 +156,15 @@ export function summonTileTest(s: GameState): (p: Pos) => boolean {
 /**
  * The placement routine (§9.5): legal tiles sorted by distance from the anchor, then reading
  * order; the first one within `maxDistance` (null = no cap, respawn) or null (the effect fizzles).
+ * A multi-tile anchor (a boss footprint, `anchorSize` 2) measures from its nearest tile.
  */
-export function placeNear(s: GameState, anchor: Pos, maxDistance: number | null, legal: (p: Pos) => boolean): Pos | null {
+export function placeNear(s: GameState, anchor: Pos, maxDistance: number | null, legal: (p: Pos) => boolean, anchorSize = 1): Pos | null {
   let best: Pos | null = null;
   let bestDistance = Infinity;
   for (let y = s.board.h - 1; y >= 0; y--) {
     for (let x = 0; x < s.board.w; x++) {
       const p = { x, y };
-      const d = chebyshev(anchor, p);
+      const d = footprintDistance(anchor, anchorSize, p, 1);
       if (maxDistance !== null && d > maxDistance) continue;
       if (d < bestDistance || (d === bestDistance && best !== null && compareReadingOrder(p, best) < 0)) {
         if (!legal(p)) continue;

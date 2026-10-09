@@ -19,6 +19,7 @@ import type {
   Plume,
   Pos,
   RuleModId,
+  RuleSource,
   Tile,
 } from './types';
 
@@ -36,6 +37,11 @@ export interface Ctx {
   s: GameState;
   reg: ContentRegistry;
   events: GameEvent[];
+  /**
+   * Open atomic effects (GDD §13.1.5, modes/vigil `atomicEffect`): a Dread defeat reached inside
+   * one is held until the outermost one ends, so a victory in the same effect wins.
+   */
+  atomic?: { depth: number; defeat: string | null };
 }
 
 export function makeCtx(s: GameState, reg: ContentRegistry = getContent()): Ctx {
@@ -43,14 +49,19 @@ export function makeCtx(s: GameState, reg: ContentRegistry = getContent()): Ctx 
 }
 
 /**
- * Deep copy for `applyAction` (the state is plain JSON). The config and the Retry snapshot are
- * never mutated once made, so clones share them; log entries are immutable, so the log array is
- * copied shallowly.
+ * Deep copy for `applyAction` (the state is plain JSON). The config, the Retry snapshot and undo
+ * frames are never mutated once made, so clones share them (the frame list itself is copied);
+ * log entries are immutable, so the log array is copied shallowly.
  */
 export function cloneState(s: GameState): GameState {
-  const { config, log, nightSnapshot, ...rest } = s;
+  const { config, log, nightSnapshot, undo, ...rest } = s;
   const copy = JSON.parse(JSON.stringify(rest)) as typeof rest;
-  return { ...copy, config, log: log.slice(), nightSnapshot };
+  return { ...copy, config, log: log.slice(), nightSnapshot, undo: { frames: undo.frames.slice(), depth: undo.depth } };
+}
+
+/** Drop every undo frame (seat-turn start and end, commit points, Retry). */
+export function clearUndo(s: GameState): void {
+  s.undo = { frames: [], depth: 0 };
 }
 
 export function emit(ctx: Ctx, event: GameEvent): void {
@@ -116,6 +127,11 @@ export function isEnemyOfSeat(s: GameState, seat: number | null, p: Piece): bool
   if (p.side === 'snuff') return true;
   if (p.kind === 'candle') return false;
   return s.config.mode === 'last_flame' && seat !== null && p.owner !== null && p.owner !== seat;
+}
+
+/** A Last Flame rival of the acting seat: another seat's hero or unit. */
+export function isRivalOf(s: GameState, seat: number | null, p: Piece): boolean {
+  return s.config.mode === 'last_flame' && seat !== null && p.side === 'wick' && p.kind !== 'candle' && p.owner !== null && p.owner !== seat;
 }
 
 /** Allied to the acting seat: every Wickfolk piece in Vigil, own pieces in Last Flame. Candles only on request. */
@@ -236,6 +252,15 @@ export function addRule(s: GameState, rule: ActiveRule): void {
   s.activeRules.push(rule);
   if (rule.seat !== null) syncTurnState(s, rule.seat);
   else s.players.forEach((p) => syncTurnState(s, p.seat));
+}
+
+/**
+ * A card limit for every seat during the next players phase (Silencing Peal, for the boss
+ * engineer). Added before or during a players phase it applies to that phase; added during a
+ * Snuff Strike it applies to the following round's players phase. It ends with that phase.
+ */
+export function setPlayersPhaseCardLimit(s: GameState, limit: number, source: RuleSource): void {
+  addRule(s, { rule: 'card_limit', delta: 0, value: limit, seat: null, source, expires: 'next_players_phase' });
 }
 
 /** Drop rules with this duration (optionally only one seat's). */

@@ -4,6 +4,7 @@
  * full deck shuffles and opening hands, and the Retry snapshot.
  */
 import { boardSizeFor, gloamSchedule, tierForNight } from '../config/resolve';
+import { spawnBoss } from './bosses';
 import { contentHash, getContent } from './content';
 import { drawUpTo, shuffleInFull, starterDeck } from './decks';
 import { chebyshev, quadrantOf, rectContains, sq } from './geometry';
@@ -24,8 +25,9 @@ import {
   belchAll,
 } from './snuff';
 import { createCandle, createHeroPiece, placeNear, spawnEnemy, summonTileTest } from './spawn';
-import { emit, heroOf, makeCtx, pieceList, plumeAt, removePiece, ruleDelta, tileAt } from './state';
+import { clearUndo, emit, heroOf, makeCtx, pieceList, plumeAt, removePiece, ruleDelta, tileAt } from './state';
 import type { Ctx } from './state';
+import { stackOpeningHand, tutorialConfig } from './tutorial';
 import { STATE_VERSION } from './types';
 import type {
   ContentRegistry,
@@ -149,7 +151,7 @@ function emptyState(config: GameConfig, reg: ContentRegistry): GameState {
     toll: { offer: null, chooser: null, active: null, curseReward: false, history: [] },
     omen: { face: null, omenId: null },
     activeRules: [],
-    undo: { frames: [] },
+    undo: { frames: [], depth: 0 },
     nightSnapshot: null,
     tutorial: null,
     stats: { retries: 0, roundsPlayed: 0, candlesSnuffed: 0, candlesSaved: 0, nightsCompleted: 0, dreadPeak: config.starting_dread, pieces: {} },
@@ -195,8 +197,9 @@ function createPlayers(s: GameState, reg: ContentRegistry): void {
  * Build the initial state from a resolved config (seed already concrete) and enter Night 1's
  * night_setup. Throws on an invalid config (validate with config/resolve first).
  */
-export function createGame(config: GameConfig, opts: { content?: ContentRegistry } = {}): GameState {
+export function createGame(given: GameConfig, opts: { content?: ContentRegistry } = {}): GameState {
   const reg = opts.content ?? getContent();
+  const config = tutorialConfig(given);
   checkConfig(config, reg);
   const s = emptyState(config, reg);
   createPlayers(s, reg);
@@ -376,6 +379,8 @@ export function enterNightSetup(ctx: Ctx): void {
   s.activeSeat = null;
   s.claimQueue = [];
   s.omen = { face: null, omenId: null };
+  clearUndo(s);
+  if (s.vigil) s.vigil = { ...s.vigil, retryVotes: [], concedeVotes: [] };
   clearNight(s);
 
   const keepBoard = s.config.mode === 'last_flame' && s.night > 1;
@@ -393,6 +398,7 @@ export function enterNightSetup(ctx: Ctx): void {
     }
   }
   resetPiecesForNight(s);
+  if (s.isBossNight) spawnBoss(ctx, layout.bossAnchor);
   for (const stack of layout.smokestacks) if (!keepBoard) spawnEnemy(ctx, 'smokestack', stack, 'setup');
   if (!s.isBossNight && s.tier >= 2 && s.config.extra_smokestack) placeExtraSmokestack(ctx, layout.heroStarts);
   if (siteId === 'first_vigil') placeScriptedSootlings(ctx);
@@ -410,6 +416,7 @@ export function enterNightSetup(ctx: Ctx): void {
     player.turn = freshTurnState(reg);
     if (player.eliminated) continue;
     shuffleInFull(ctx, player.seat);
+    stackOpeningHand(ctx, player.seat);
     drawUpTo(ctx, player.seat, s.config.hand_size);
   }
   s.phase = 'night_setup';

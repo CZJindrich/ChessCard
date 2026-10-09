@@ -28,6 +28,15 @@ export function onHeroFellLastFlame(ctx: Ctx, hero: Piece): void {
   if (hero.owner !== null) awardGlory(ctx, hero.owner, ctx.reg.rules.glory.heroFalls, 'hero_fell');
 }
 
+/**
+ * Truce (§13.2.3) is in force: rival pieces cannot be chosen as targets, area effects skip them,
+ * strikes cannot hit them and pushes never bump them. Hook for the Last Flame engineer, who owns
+ * the truce state; until then there is never a truce.
+ */
+export function isTruceActive(_s: GameState): boolean {
+  return false;
+}
+
 /** Tally step 1: the Gloam closes (hook). */
 export function tallyGloamClose(_ctx: Ctx): void {}
 
@@ -99,7 +108,7 @@ export function endLastFlameGame(ctx: Ctx, reason: Extract<GameResult, { mode: '
       alive,
       eliminationBand: p.eliminationBand,
       bossDamage: p.stats.bossDamage,
-      breakdown: { snuff_kill: 0, rival_unit: 0, rival_hero: 0, bounty: 0, shrine: 0, boss_damage: 0, boss_kill: 0, survival: bonus, hero_fell: 0 },
+      breakdown: { snuff_kill: 0, rival_unit: 0, rival_hero: 0, bounty: 0, shrine: 0, boss_damage: 0, boss_kill: 0, survival: bonus, hero_fell: 0, effect: 0 },
     };
   });
   for (const st of standings) st.placement = 1 + standings.filter((o) => o.score > st.score).length;

@@ -7,6 +7,7 @@
  * the covered tiles and victims from the attacker's CURRENT position, so displacing an attacker
  * moves its attack, and `firstHit` lines are retraced at strike time.
  */
+import { bossIntentText, resolveBossIntent } from './bossIntents';
 import { bossSnuffMove } from './bosses';
 import { afterMoveEnd, applyBurn, applyDaze, dealDamage, pushPiece, takesHotWax } from './combat';
 import { baseEnv, hasTrait, runTraitTrigger, transformPiece } from './effects';
@@ -15,6 +16,7 @@ import {
   areaAnchorSize,
   areaTiles,
   artilleryTiles,
+  beamTiles,
   chebyshev,
   clipToBoard,
   compareReadingOrder,
@@ -94,7 +96,7 @@ export interface AimHit {
   victimIds: string[];
 }
 
-interface AimSpec {
+export interface AimSpec {
   geom: AimGeom;
   range: number | null;
   firstHit: boolean;
@@ -159,7 +161,7 @@ function piecesOn(s: GameState, q: BoardQuery, tiles: readonly Pos[]): string[] 
 }
 
 /** Tiles and victims of one aim from `at`. Bosses are never hit by Snuff attacks (§6.8). */
-function aimHits(s: GameState, q: BoardQuery, at: Pos, size: number, spec: AimSpec): AimHit {
+export function aimHits(s: GameState, q: BoardQuery, at: Pos, size: number, spec: AimSpec): AimHit {
   const { w, h } = s.board;
   const g = spec.geom;
   let tiles: Pos[] = [];
@@ -170,7 +172,9 @@ function aimHits(s: GameState, q: BoardQuery, at: Pos, size: number, spec: AimSp
     victimIds = (spec.firstHit ? trace.hits.slice(0, 1) : trace.hits).map((hit) => hit.pieceId);
   } else {
     if (g.kind === 'melee' && g.offset) tiles = [addPos(at, g.offset)];
-    else if (g.kind === 'area') tiles = areaTiles(g.shape, at, { size });
+    else if (g.kind === 'area' && g.dir && (g.shape === 'beam2' || g.shape === 'side2')) {
+      tiles = beamTiles(q, at, size, g.dir, g.shape === 'side2' ? 1 : (spec.range ?? 1));
+    } else if (g.kind === 'area') tiles = areaTiles(g.shape, at, { size });
     else if (g.kind === 'artillery' && g.offset) tiles = areaTiles(g.shape, addPos(at, g.offset));
     tiles = clipToBoard(tiles, w, h);
     victimIds = piecesOn(s, q, tiles);
@@ -408,7 +412,8 @@ function moveKindOf(pattern: Pattern, from: Pos, to: Pos): 'step' | 'slide' | 'l
   return chebyshev(from, to) === 1 ? 'step' : 'slide';
 }
 
-function putOutShrine(ctx: Ctx, p: Pos): void {
+/** A Snuff ending a move on, or attacking, a Lit Shrine puts it out (§5.4). */
+export function putOutShrine(ctx: Ctx, p: Pos): void {
   const tile = tileAt(ctx.s, p);
   if (!tile || tile.type !== 'votive_shrine' || !tile.shrineLit) return;
   tile.shrineLit = false;
@@ -481,7 +486,8 @@ function compareAims(a: ScoredAim, b: ScoredAim): number {
   );
 }
 
-function declareIntent(ctx: Ctx, enemy: Piece, def: EnemyDef, target: SnuffTarget | null): Intent | null {
+/** The enemy's intent for this Snuff Move: the best aim at `target` (§12.3); null when Dazed or unarmed. */
+export function declareIntent(ctx: Ctx, enemy: Piece, def: EnemyDef, target: SnuffTarget | null): Intent | null {
   const { s } = ctx;
   if (enemy.dazed) {
     enemy.dazed = false;
@@ -563,6 +569,12 @@ export function runSnuffMovement(ctx: Ctx): void {
     if (enemy.kind === 'boss' || s.pieces[enemy.id] !== enemy) continue;
     snuffMoveOne(ctx, enemy);
   }
+  numberIntents(ctx);
+}
+
+/** Number the locked intents in queue (resolution) order and announce them. */
+export function numberIntents(ctx: Ctx): void {
+  const { s } = ctx;
   s.intents.forEach((intent, i) => {
     intent.queue = i + 1;
     emit(ctx, {
@@ -582,7 +594,7 @@ export function runSnuffMovement(ctx: Ctx): void {
 // =============================================================================================
 
 /** Kill credit for a Snuff hit (§6.3): who displaced the victim or attacker, or reversed the intent. */
-function snuffCredit(victim: Piece, attacker: Piece, intent: Intent): number | null {
+export function snuffCredit(victim: Piece, attacker: Piece, intent: Intent): number | null {
   return victim.lastDisplacedBy ?? attacker.lastDisplacedBy ?? intent.reversedBy ?? null;
 }
 
@@ -591,6 +603,10 @@ function resolveIntent(ctx: Ctx, intent: Intent): void {
   const attacker = s.pieces[intent.attackerId];
   if (!attacker) {
     emit(ctx, { type: 'intent_cancelled', intentId: intent.id, reason: 'attacker_died' });
+    return;
+  }
+  if (attacker.kind === 'boss' && intent.bossIntentId) {
+    resolveBossIntent(ctx, intent, attacker);
     return;
   }
   const hit = intentHits(s, intent);
@@ -807,7 +823,8 @@ function verbFor(intent: Intent): string {
   return 'strikes';
 }
 
-function dreadNote(s: GameState, victims: Piece[], damage: number): string {
+/** " (Dread +n)" for the Vigil Candles an intent would hit (Ward absorbs a hit). */
+export function dreadNote(s: GameState, victims: Piece[], damage: number): string {
   if (!s.vigil) return '';
   const candles = victims.filter((p) => p.kind === 'candle' && !p.ward);
   if (candles.length === 0) return '';
@@ -817,6 +834,7 @@ function dreadNote(s: GameState, victims: Piece[], damage: number): string {
 
 /** "1 · Ink Wretch → lances c3 Vigil Candle for 1 (Dread +1)" (§15.4). */
 export function intentText(s: GameState, reg: ContentRegistry, intent: Intent): { name: string; text: string } {
+  if (intent.bossIntentId) return bossIntentText(s, reg, intent);
   const attacker = s.pieces[intent.attackerId];
   const name = attacker ? pieceName(reg, attacker) : 'Snuff';
   const hit = intentHits(s, intent);

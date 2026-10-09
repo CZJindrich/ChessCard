@@ -1,7 +1,8 @@
 /**
  * The reducer: `validateAction` and `applyAction` (ARCHITECTURE §3-4). `applyAction` never
  * mutates its input: it clones the state, applies the action through a Ctx and returns the new
- * state with the events to animate, in order.
+ * state with the events to animate, in order. Undoable player actions record an undo frame
+ * (undo.ts); `undo` and `retry_night` replace the whole state.
  */
 import {
   applyFreeAction,
@@ -15,13 +16,13 @@ import {
   validateRelight,
   validateStrike,
 } from './actions';
+import { refreshBossWatch } from './bosses';
 import { applyPlayCard, validatePlayCard } from './cards';
 import {
   applyBoonPick,
   applyCarryOver,
   applyChooseToll,
   applyClaimTurn,
-  applyConcede,
   applyDeploy,
   applyDraftPick,
   applyEndTurn,
@@ -31,7 +32,6 @@ import {
   validateCarryOver,
   validateChooseToll,
   validateClaimTurn,
-  validateConcede,
   validateDeploy,
   validateDraftPick,
   validateEndTurn,
@@ -40,17 +40,22 @@ import {
 } from './choices';
 import { getContent } from './content';
 import { advance, pendingAutomation } from './phases';
+import { applyUsePower, validateUsePower } from './powers';
 import { refreshIntentTiles } from './snuff';
 import { cloneState, makeCtx } from './state';
 import type { Ctx } from './state';
+import { applyUndo, isUndoable, recordUndo, snapshotOf, validateUndo } from './undo';
 import { fail, OK } from './validation';
+import { applyConcede, applyRetry, validateConcede, validateRetry } from './votes';
 import type { Action, ApplyResult, ContentRegistry, GameState, Validation } from './types';
 
 /** Is the action legal now? Returns a reason code (§15.6) when not. */
 export function validateAction(s: GameState, action: Action, reg: ContentRegistry = getContent()): Validation {
-  if (s.result) return fail('GAME_OVER');
-  if (action.type === 'advance') return pendingAutomation(s) ? OK : fail('WRONG_PHASE');
+  if (action.type === 'advance') return !s.result && pendingAutomation(s) ? OK : fail(s.result ? 'GAME_OVER' : 'WRONG_PHASE');
   if (!Number.isInteger(action.seat) || !s.players[action.seat]) return fail('INVALID_ACTION');
+  // Retry this Night is offered on the defeat screen too.
+  if (action.type === 'retry_night') return validateRetry(s, action);
+  if (s.result) return fail('GAME_OVER');
   switch (action.type) {
     case 'move':
       return validateMove(s, reg, action);
@@ -64,6 +69,10 @@ export function validateAction(s: GameState, action: Action, reg: ContentRegistr
       return validateFreeAction(s, reg, action);
     case 'play_card':
       return validatePlayCard(s, reg, action);
+    case 'use_power':
+      return validateUsePower(s, reg, action);
+    case 'undo':
+      return validateUndo(s, action);
     case 'end_turn':
       return validateEndTurn(s, action);
     case 'claim_turn':
@@ -84,12 +93,6 @@ export function validateAction(s: GameState, action: Action, reg: ContentRegistr
       return validateSkipPick(s, action);
     case 'boon_pick':
       return validateBoonPick(s, reg, action);
-    case 'undo':
-      return fail('NO_UNDO');
-    case 'use_power':
-      return fail('NOT_ENABLED', { feature: 'Hero Powers' });
-    case 'retry_night':
-      return fail(s.config.retry_night && !s.config.daily ? 'NOT_ENABLED' : 'RETRY_DISABLED', { feature: 'Retry' });
     case 'haunt':
       return fail('NOT_ENABLED', { feature: 'Haunting' });
     case 'config_set':
@@ -101,57 +104,48 @@ export function validateAction(s: GameState, action: Action, reg: ContentRegistr
 function dispatch(ctx: Ctx, action: Action): void {
   switch (action.type) {
     case 'advance':
-      advance(ctx);
-      return;
+      return advance(ctx);
     case 'move':
-      applyMove(ctx, action);
-      return;
+      return applyMove(ctx, action);
     case 'strike':
-      applyStrike(ctx, action);
-      return;
+      return applyStrike(ctx, action);
     case 'relight':
-      applyRelight(ctx, action);
-      return;
+      return applyRelight(ctx, action);
     case 'light_shrine':
-      applyLightShrine(ctx, action);
-      return;
+      return applyLightShrine(ctx, action);
     case 'free_action':
-      applyFreeAction(ctx, action);
-      return;
+      return applyFreeAction(ctx, action);
     case 'play_card':
-      applyPlayCard(ctx, action);
-      return;
+      return applyPlayCard(ctx, action);
+    case 'use_power':
+      return applyUsePower(ctx, action);
+    case 'undo':
+      return applyUndo(ctx, action);
+    case 'retry_night':
+      return applyRetry(ctx, action);
     case 'end_turn':
-      applyEndTurn(ctx, action);
-      return;
+      return applyEndTurn(ctx, action);
     case 'claim_turn':
-      applyClaimTurn(ctx, action);
-      return;
+      return applyClaimTurn(ctx, action);
     case 'concede':
-      applyConcede(ctx, action);
-      return;
+      return applyConcede(ctx, action);
     case 'deploy':
-      applyDeploy(ctx, action);
-      return;
+      return applyDeploy(ctx, action);
     case 'ready':
-      applyReady(ctx, action);
-      return;
+      return applyReady(ctx, action);
     case 'choose_toll':
-      applyChooseToll(ctx, action);
-      return;
+      return applyChooseToll(ctx, action);
     case 'carry_over':
-      applyCarryOver(ctx, action);
-      return;
+      return applyCarryOver(ctx, action);
     case 'draft_pick':
-      applyDraftPick(ctx, action);
-      return;
+      return applyDraftPick(ctx, action);
     case 'skip_pick':
-      applySkipPick(ctx, action);
-      return;
+      return applySkipPick(ctx, action);
     case 'boon_pick':
-      applyBoonPick(ctx, action);
-      return;
-    default:
+      return applyBoonPick(ctx, action);
+    case 'haunt':
+    case 'config_set':
+    case 'start_game':
       return;
   }
 }
@@ -161,7 +155,10 @@ export function applyAction(s: GameState, action: Action, reg: ContentRegistry =
   const validation = validateAction(s, action, reg);
   if (!validation.ok) return validation;
   const ctx = makeCtx(cloneState(s), reg);
+  const snapshot = isUndoable(action) ? snapshotOf(s) : null;
   dispatch(ctx, action);
+  refreshBossWatch(ctx);
+  if (snapshot) recordUndo(ctx, s, action, snapshot);
   refreshIntentTiles(ctx.s);
   return { ok: true, state: ctx.s, events: ctx.events };
 }

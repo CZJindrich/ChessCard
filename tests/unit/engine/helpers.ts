@@ -4,7 +4,7 @@
  */
 import { expect } from 'vitest';
 import { customSelection, NO_FLAGS, resolveConfig } from '../../../src/config';
-import { applyAction, createGame, getContent, pendingAutomation, sq } from '../../../src/engine';
+import { applyAction, createGame, getContent, pendingAutomation, sq, sqName } from '../../../src/engine';
 import type { Action, GameConfig, GameEvent, GameState, ModeId, Piece, RuleValues, SeatConfig, TileId } from '../../../src/engine';
 import { createCandle, createUnit, spawnEnemy } from '../../../src/engine/spawn';
 import { makeCtx, removePiece } from '../../../src/engine/state';
@@ -109,4 +109,65 @@ export function pieceOn(s: GameState, square: string): Piece | undefined {
 
 export function eventsOf<T extends GameEvent['type']>(events: GameEvent[], type: T): Array<Extract<GameEvent, { type: T }>> {
   return events.filter((e): e is Extract<GameEvent, { type: T }> => e.type === type);
+}
+
+/** Put a card into a seat's hand and return its uid. */
+export function giveCard(s: GameState, id: string, opts: { tempered?: boolean; seat?: number } = {}): string {
+  const card = { uid: `c${s.nextId++}`, id, tempered: opts.tempered ?? false };
+  s.players[opts.seat ?? 0].hand.push(card);
+  return card.uid;
+}
+
+/** Play a card (seat 0 by default) with piece / tile choices; must be legal. */
+export function playCard(
+  s: GameState,
+  uid: string,
+  targets: Array<Piece | string>,
+  opts: { seat?: number; mode?: number } = {},
+): { state: GameState; events: GameEvent[] } {
+  const choices = targets.map((t) => (typeof t === 'string' ? { kind: 'tile' as const, pos: sq(t) } : { kind: 'piece' as const, pieceId: t.id }));
+  return act(s, { type: 'play_card', seat: opts.seat ?? 0, cardUid: uid, targets: choices, ...(opts.mode !== undefined ? { mode: opts.mode } : {}) });
+}
+
+/** Lock a melee intent of `attacker` aimed at the adjacent tile `at`. */
+export function lockMelee(s: GameState, attacker: Piece, at: string, damage = attacker.atk): void {
+  const p = sq(at);
+  const offset = { x: p.x - attacker.pos.x, y: p.y - attacker.pos.y };
+  s.intents.push({
+    id: `i${s.nextId++}`,
+    attackerId: attacker.id,
+    bossIntentId: null,
+    kind: 'melee',
+    shape: 'single',
+    dir: { x: Math.sign(offset.x), y: Math.sign(offset.y) },
+    offset,
+    range: null,
+    minRange: 1,
+    damage,
+    push: 0,
+    pushMode: null,
+    pull: 0,
+    status: null,
+    firstHit: false,
+    pierce: false,
+    centered: false,
+    reversed: false,
+    reversedBy: null,
+    queue: s.intents.length + 1,
+    tiles: [p],
+    targetId: null,
+    global: null,
+    createsTile: null,
+    extra: null,
+  });
+}
+
+/** Add a Plume (contents: Sootling) on a tile. */
+export function plumeAt(s: GameState, square: string, enemyId = 'sootling'): void {
+  s.plumes.push({ id: `m${s.nextId++}`, pos: sq(square), enemyId, order: s.nextId++, source: 'schedule', hauntSeat: null, hauntedHeroId: null });
+}
+
+/** Squares of a CardTargetInfo's options, sorted. */
+export function optionSquares(info: { targets: Array<{ pos: { x: number; y: number } }> }): string[] {
+  return info.targets.map((t) => sqName(t.pos)).sort();
 }

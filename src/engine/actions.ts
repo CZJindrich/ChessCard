@@ -3,15 +3,20 @@
  * the free action `melt` / `ring_bell`. Each has a validator returning a reason code (§15.6) and an
  * apply function that mutates the cloned state through a Ctx.
  */
-import { afterMoveEnd, applyDaze, dismissUnit } from './combat';
+import { afterMoveEnd, dismissUnit } from './combat';
+import { baseEnv, runEffects } from './effects';
 import { chebyshev, footprintDistance, samePos, sqName } from './geometry';
 import { addLog, pieceAtText, pieceName } from './log';
-import { awardGlory } from './modes/lastFlame';
+import { awardGlory, isTruceActive } from './modes/lastFlame';
+import { previewFromEvents } from './previewEvents';
 import { findPlan, moveDestinations, performStrike, pieceProfile, strikeOption, strikePlans } from './strike';
-import { emit, getPiece, heroOf, isEnemyOfSeat, pieceAt, tileAt } from './state';
+import { cloneState, emit, getPiece, heroOf, isRivalOf, makeCtx, pieceAt, tileAt, unitsOf } from './state';
 import type { Ctx } from './state';
+import { checkPicks, pickPlan, picksToTargets } from './targeting';
+import type { PickEnv } from './targeting';
+import { stepInfo } from './targetInfo';
 import { fail, OK } from './validation';
-import type { ActionOf, ContentRegistry, GameState, Piece, Pos, StrikeOption, Validation } from './types';
+import type { ActionOf, CardTargetChoice, CardTargetInfo, ContentRegistry, EffectPreview, FreeActionKind, GameState, HeirloomDef, Piece, Pos, StrikeOption, Validation } from './types';
 
 /** The players phase, and `seat` is the seat acting right now. */
 export function checkTurn(s: GameState, seat: number): Validation {
@@ -101,8 +106,10 @@ export function validateStrike(s: GameState, reg: ContentRegistry, a: ActionOf<'
   if (!own.ok || !own.piece) return own;
   if (own.piece.strikesLeft <= 0) return fail(own.piece.movesLeft > 0 ? 'NO_STRIKE_LEFT' : 'PIECE_SPENT');
   const plans = strikePlans(s, reg, own.piece);
-  if (plans.length === 0) return fail('NO_TARGET');
-  return findPlan(s, plans, a.target) ? OK : fail('INVALID_TARGET');
+  if (findPlan(s, plans, a.target)) return OK;
+  const occupant = pieceAt(s, a.target);
+  if (occupant && isTruceActive(s) && isRivalOf(s, a.seat, occupant)) return fail('TRUCE');
+  return fail(plans.length === 0 ? 'NO_TARGET' : 'INVALID_TARGET');
 }
 
 export function applyStrike(ctx: Ctx, a: ActionOf<'strike'>): void {
@@ -161,43 +168,111 @@ export function applyLightShrine(ctx: Ctx, a: ActionOf<'light_shrine'>): void {
 }
 
 // =============================================================================================
-// Free actions
+// Free actions: melt and ring_bell
 // =============================================================================================
+
+/** The Bell of Saint Tallow, when the seat's hero owns it. */
+function bellOf(s: GameState, reg: ContentRegistry, seat: number): HeirloomDef | null {
+  const id = s.players[seat]?.heirlooms.find((h) => reg.heirlooms.byId[h]?.freeAction === 'ring_bell');
+  return id ? (reg.heirlooms.byId[id] ?? null) : null;
+}
+
+function bellEnv(seat: number, def: HeirloomDef): PickEnv | null {
+  return def.target ? { seat, kind: 'free', plan: pickPlan(def.target, null, def.effects) } : null;
+}
+
+/** Everything except the target: owned, once per Night, hero standing. */
+function bellReady(s: GameState, reg: ContentRegistry, seat: number): Validation & { def?: HeirloomDef } {
+  const def = bellOf(s, reg, seat);
+  if (!def) return fail('NOT_OWNED');
+  if (s.players[seat].bellUsedThisNight) return fail('ONCE_PER_NIGHT');
+  const hero = heroOf(s, seat);
+  if (!hero || hero.smoldering) return fail('HERO_SMOLDERING');
+  return { ok: true, def };
+}
+
+function bellChoices(a: ActionOf<'free_action'>): CardTargetChoice[] {
+  if (a.pieceId) return [{ kind: 'piece', pieceId: a.pieceId }];
+  return a.target ? [{ kind: 'tile', pos: a.target }] : [];
+}
+
+function validateMelt(s: GameState, a: ActionOf<'free_action'>): Validation {
+  const piece = getPiece(s, a.pieceId);
+  if (!piece) return fail('UNKNOWN_PIECE');
+  if (piece.owner !== a.seat) return fail('NOT_YOUR_PIECE');
+  return piece.kind === 'unit' ? OK : fail('INVALID_TARGET');
+}
 
 export function validateFreeAction(s: GameState, reg: ContentRegistry, a: ActionOf<'free_action'>): Validation {
   const turn = checkTurn(s, a.seat);
   if (!turn.ok) return turn;
-  if (a.kind === 'melt') {
-    const piece = getPiece(s, a.pieceId);
-    if (!piece) return fail('UNKNOWN_PIECE');
-    if (piece.owner !== a.seat) return fail('NOT_YOUR_PIECE');
-    return piece.kind === 'unit' ? OK : fail('INVALID_TARGET');
-  }
-  const player = s.players[a.seat];
-  if (!player.heirlooms.includes('bell_of_saint_tallow')) return fail('NOT_OWNED');
-  if (player.bellUsedThisNight) return fail('ONCE_PER_NIGHT');
+  if (a.kind === 'melt') return validateMelt(s, a);
+  const ready = bellReady(s, reg, a.seat);
+  if (!ready.ok || !ready.def) return ready;
+  const env = bellEnv(a.seat, ready.def);
+  return env ? checkPicks(s, reg, env, bellChoices(a)) : fail('INVALID_ACTION');
+}
+
+function ringBell(ctx: Ctx, a: ActionOf<'free_action'>): void {
+  const { s, reg } = ctx;
+  const def = bellOf(s, reg, a.seat);
+  const env = def ? bellEnv(a.seat, def) : null;
+  if (!def || !env) return;
+  const targets = picksToTargets(s, reg, env, bellChoices(a));
+  const target = getPiece(s, targets[0]?.pieceId);
+  s.players[a.seat].bellUsedThisNight = true;
+  emit(ctx, { type: 'free_action_used', seat: a.seat, kind: 'ring_bell', ...(target ? { pieceId: target.id, target: { ...target.pos } } : {}) });
+  addLog(ctx, `The ${def.name} rings${target ? ` over ${pieceAtText(reg, target)}` : ''}.`, a.seat);
   const hero = heroOf(s, a.seat);
-  if (!hero || hero.smoldering) return fail('HERO_SMOLDERING');
-  const target = a.target ? pieceAt(s, a.target) : null;
-  if (!target || !isEnemyOfSeat(s, a.seat, target)) return fail('INVALID_TARGET');
-  const range = reg.rules.ringBellRange;
-  if (footprintDistance(hero.pos, 1, target.pos, target.size) > range) return fail('OUT_OF_RANGE', { r: range });
-  return OK;
+  runEffects(ctx, def.effects, baseEnv({ seat: a.seat, self: hero, targets, ruleSource: { kind: 'heirloom', id: def.id } }));
 }
 
 export function applyFreeAction(ctx: Ctx, a: ActionOf<'free_action'>): void {
   const { s, reg } = ctx;
-  if (a.kind === 'melt') {
-    const piece = s.pieces[a.pieceId ?? ''];
-    emit(ctx, { type: 'free_action_used', seat: a.seat, kind: 'melt', pieceId: piece.id });
-    addLog(ctx, `${pieceAtText(reg, piece)} is dismissed.`, a.seat);
-    dismissUnit(ctx, piece, 'melt');
+  if (a.kind === 'ring_bell') {
+    ringBell(ctx, a);
     return;
   }
-  const target = a.target ? pieceAt(s, a.target) : null;
-  if (!target) return;
-  s.players[a.seat].bellUsedThisNight = true;
-  emit(ctx, { type: 'free_action_used', seat: a.seat, kind: 'ring_bell', target: a.target });
-  addLog(ctx, `The Bell of Saint Tallow rings: ${pieceAtText(reg, target)} is Dazed.`, a.seat);
-  applyDaze(ctx, target);
+  const piece = s.pieces[a.pieceId ?? ''];
+  if (!piece) return;
+  emit(ctx, { type: 'free_action_used', seat: a.seat, kind: 'melt', pieceId: piece.id });
+  addLog(ctx, `${pieceAtText(reg, piece)} is dismissed.`, a.seat);
+  dismissUnit(ctx, piece, 'melt');
+}
+
+function simulateFree(s: GameState, reg: ContentRegistry, a: ActionOf<'free_action'>): EffectPreview {
+  const ctx = makeCtx(cloneState(s), reg);
+  applyFreeAction(ctx, a);
+  return previewFromEvents(ctx.events, ctx.s);
+}
+
+function meltInfo(s: GameState, reg: ContentRegistry, seat: number, base: CardTargetInfo): CardTargetInfo {
+  const units = unitsOf(s, seat);
+  if (units.length === 0) return { ...base, reason: 'NO_TARGET' };
+  const targets = units.map((p: Piece) => ({
+    choice: { kind: 'piece', pieceId: p.id } as CardTargetChoice,
+    pos: { ...p.pos },
+    preview: simulateFree(s, reg, { type: 'free_action', seat, kind: 'melt', pieceId: p.id }),
+  }));
+  return { ...base, playable: true, targets };
+}
+
+/**
+ * Valid targets of a free action: `melt` lists the seat's units (send `pieceId`); `ring_bell`
+ * lists the enemies the Bell can Daze (send `pieceId` or the tile as `target`).
+ */
+export function freeActionTargetInfo(s: GameState, reg: ContentRegistry, seat: number, kind: FreeActionKind): CardTargetInfo {
+  const base: CardTargetInfo = { playable: false, cost: 0, modes: null, step: 0, steps: 1, optional: false, targets: [], rangeRing: null };
+  const turn = checkTurn(s, seat);
+  if (!turn.ok) return { ...base, reason: turn.reason, ...(turn.params ? { params: turn.params } : {}) };
+  if (kind === 'melt') return meltInfo(s, reg, seat, base);
+  const ready = bellReady(s, reg, seat);
+  if (!ready.ok || !ready.def) return { ...base, ...(ready.ok ? {} : { reason: ready.reason }) };
+  const env = bellEnv(seat, ready.def);
+  if (!env) return { ...base, reason: 'INVALID_ACTION' };
+  const preview = (choices: CardTargetChoice[]) => {
+    const first = choices[0];
+    return simulateFree(s, reg, { type: 'free_action', seat, kind, ...(first?.kind === 'piece' ? { pieceId: first.pieceId } : {}) });
+  };
+  return stepInfo(s, reg, env, [], preview, base);
 }

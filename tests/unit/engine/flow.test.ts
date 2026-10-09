@@ -73,7 +73,7 @@ describe('whole Nights', () => {
     expect(reached.length).toBeGreaterThanOrEqual(3);
   }, 60_000);
 
-  it('a 3-Night run: the Boss Night plays as a regular Night until bosses land, then the game ends', () => {
+  it('a 3-Night run ends on the Boss Night: a victory means the boss fell', () => {
     let victories = 0;
     for (const seed of ['run-1', 'run-2', 'run-3', 'run-4', 'run-5', 'run-6']) {
       const start = newGame({ seed, seats: seats(['human']), overrides: { ...GENTLE, length: 'short', nights: 3, tolls: true, moth_die: true, boons: true } });
@@ -85,7 +85,8 @@ describe('whole Nights', () => {
         expect(state.night).toBe(3);
         expect(state.isBossNight).toBe(true);
         expect(state.siteId).toBe('hollow_nave');
-        expect(state.boss).toBeNull();
+        expect(state.boss).not.toBeNull();
+        expect(state.pieces[state.boss?.pieceId ?? '']).toBeUndefined();
         expect(state.result.stars).toBeGreaterThanOrEqual(1);
       }
     }

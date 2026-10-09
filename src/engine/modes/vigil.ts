@@ -34,7 +34,8 @@ export function currentThreshold(s: GameState, reg: ContentRegistry): DreadThres
 
 /**
  * Change Dread (Vigil only; a no-op in Last Flame or after the game ended). Defeat is checked
- * at once (§13.1.5): Dread at or above the maximum ends the game.
+ * after every atomic effect (§13.1.5): Dread at or above the maximum ends the game at once, or
+ * at the end of the atomic effect in progress.
  */
 export function changeDread(ctx: Ctx, delta: number, cause: DreadCause, causeText: string): void {
   const vigil = ctx.s.vigil;
@@ -45,7 +46,29 @@ export function changeDread(ctx: Ctx, delta: number, cause: DreadCause, causeTex
   vigil.dread = to;
   ctx.s.stats.dreadPeak = Math.max(ctx.s.stats.dreadPeak, to);
   emit(ctx, { type: 'dread_changed', from, to, cause, threshold: crossedThreshold(from, to, vigil.dreadMax, ctx.reg) });
-  if (to >= vigil.dreadMax) endVigil(ctx, 'defeat', causeText);
+  if (to < vigil.dreadMax) return;
+  if (ctx.atomic && ctx.atomic.depth > 0) ctx.atomic.defeat ??= causeText;
+  else endVigil(ctx, 'defeat', causeText);
+}
+
+/**
+ * Run `fn` as one atomic effect (§13.1.5): a damage instance with what it sets off, or a bump
+ * pair. A Dread defeat reached inside it lands when the outermost effect ends, unless the same
+ * effect won the game (the boss fell): victory beats defeat.
+ */
+export function atomicEffect<T>(ctx: Ctx, fn: () => T): T {
+  const open = (ctx.atomic ??= { depth: 0, defeat: null });
+  open.depth += 1;
+  try {
+    return fn();
+  } finally {
+    open.depth -= 1;
+    if (open.depth === 0 && open.defeat !== null) {
+      const cause = open.defeat;
+      open.defeat = null;
+      endVigil(ctx, 'defeat', cause);
+    }
+  }
 }
 
 /** Stars for a victory (§13.1.6). */
@@ -87,9 +110,26 @@ export function dawnDreadRecovery(ctx: Ctx): number {
 
 /** The night_setup snapshot for Retry this Night (RNG stream positions included, §13.1.7). */
 export function captureNightSnapshot(s: GameState): void {
-  s.nightSnapshot = null;
-  const copy: Partial<GameState> = structuredClone(s);
-  delete copy.undo;
-  delete copy.nightSnapshot;
-  s.nightSnapshot = copy as StateSnapshot;
+  const { undo: _undo, nightSnapshot: _snapshot, log, ...rest } = s;
+  const copy = JSON.parse(JSON.stringify(rest)) as Omit<StateSnapshot, 'log'>;
+  s.nightSnapshot = { ...copy, log: log.slice() };
+}
+
+/**
+ * Retry this Night: restore the night_setup snapshot exactly (RNG streams, ids and the log
+ * included), then count the retry. Votes and undo frames start empty.
+ */
+export function restoreNightSnapshot(ctx: Ctx): void {
+  const current = ctx.s;
+  const snapshot = current.nightSnapshot;
+  if (!snapshot || !current.vigil) return;
+  const { config: _config, log, ...rest } = snapshot;
+  const restored = JSON.parse(JSON.stringify(rest)) as Omit<StateSnapshot, 'config' | 'log'>;
+  ctx.s = { ...restored, config: current.config, log: log.slice(), nightSnapshot: snapshot, undo: { frames: [], depth: 0 } };
+  const retries = current.vigil.retries + 1;
+  if (ctx.s.vigil) ctx.s.vigil = { ...ctx.s.vigil, retries, retryVotes: [], concedeVotes: [] };
+  ctx.s.stats.retries = current.stats.retries + 1;
+  emit(ctx, { type: 'night_retried', night: ctx.s.night });
+  emit(ctx, { type: 'phase_changed', phase: ctx.s.phase, night: ctx.s.night, round: ctx.s.round });
+  addLog(ctx, `The Night begins again (retry ${retries}).`);
 }

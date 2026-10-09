@@ -756,6 +756,24 @@ export function areaTiles(shape: AreaShape, anchor: Pos, opts: AreaOptions = {})
   }
 }
 
+/**
+ * A `size`-wide beam of `length` tiles from one side of a footprint (boss `beam2`, and `side2`
+ * with length 1). Each lane runs straight out from the side and stops before a tile that blocks
+ * line of sight (a Pillar) or the board edge; pieces never stop it (pierce).
+ */
+export function beamTiles(q: BoardQuery, anchor: Pos, size: number, dir: Dir, length: number): Pos[] {
+  const tiles: Pos[] = [];
+  for (const head of sideTiles(anchor, size, requireOrth('beam2', dir), 1)) {
+    for (let k = 0; k < length; k++) {
+      const tile = addPos(head, dir, k);
+      const terrain = q.tileAt(tile);
+      if (!terrain || terrain.blocksLos) break;
+      tiles.push(tile);
+    }
+  }
+  return tiles;
+}
+
 /** areaTiles with a rotation (N/E/S/W) instead of a direction vector. */
 export function rotatedArea(shape: AreaShape, anchor: Pos, rot: Rotation, opts: Omit<AreaOptions, 'dir'> = {}): Pos[] {
   return areaTiles(shape, anchor, { ...opts, dir: rotationDir(rot) });

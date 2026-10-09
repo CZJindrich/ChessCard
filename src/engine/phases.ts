@@ -6,10 +6,12 @@
  * a phase does its bookkeeping (the players phase claims and starts a seat turn, dawn computes the
  * carry-over defaults, the Chandlery draws offers); advancing out of it does the phase's work.
  */
-import { bossPlayersPhaseEnd, spawnBoss } from './bosses';
-import { clearStatuses, dealDamage, dismissUnit, halfMaxHp, healPiece, relightHero, returnCharm, takesHotWax } from './combat';
+import { bossPlayersPhaseEnd } from './bosses';
+import { returnCharm } from './charms';
+import { clearStatuses, dealDamage, dismissUnit, halfMaxHp, healPiece, relightHero, standsOnHotWax, takesHotWax } from './combat';
 import { discardHand, drawCards, drawUpTo } from './decks';
 import { baseEnv, runCharmTrigger, runEffects, runTraitTrigger, runTriggered } from './effects';
+import { runHeirloomTriggers } from './heirlooms';
 import { chebyshev, compareReadingOrder, sortReadingOrder } from './geometry';
 import { addLog, pieceName } from './log';
 import {
@@ -20,11 +22,13 @@ import {
   tallyGloamClose,
   tallyGloamDamage,
 } from './modes/lastFlame';
-import { changeDread, dawnDreadRecovery, endVigil } from './modes/vigil';
+import { changeDread, dawnDreadRecovery } from './modes/vigil';
 import { seatStream, streamDie, streamPick, streamShuffle, streamWeighted } from './rng';
 import { enterNightSetup, freshTurnState, plumePlacement } from './setup';
 import { refreshIntentTiles, resolveSnuffStrike, riseAll, runSnuffMovement } from './snuff';
+import { endScriptedTurn, runScriptedSnuffMove, tutorialTurnStart } from './tutorial';
 import {
+  clearUndo,
   emit,
   expireRules,
   heroOf,
@@ -35,7 +39,6 @@ import {
   ruleDelta,
   ruleValue,
   syncTurnState,
-  tileAt,
   unitsOf,
 } from './state';
 import type { Ctx } from './state';
@@ -118,7 +121,7 @@ export function advance(ctx: Ctx): void {
       runOmen(ctx);
       return;
     case 'snuff_move':
-      runSnuffMovement(ctx);
+      if (!runScriptedSnuffMove(ctx)) runSnuffMovement(ctx);
       if (!isOver(ctx.s)) enterPlayers(ctx);
       return;
     case 'snuff_strike':
@@ -147,17 +150,6 @@ export function advance(ctx: Ctx): void {
 // Night start, boss intro, Toll
 // =============================================================================================
 
-/** Heirloom triggers (ever_burning_wick at night_start). E2 registers passive Heirloom rules. */
-function runHeirloomTrigger(ctx: Ctx, trigger: TriggerId): void {
-  for (const player of seatsInPlay(ctx.s)) {
-    for (const id of player.heirlooms) {
-      const def = ctx.reg.heirlooms.byId[id];
-      if (!def || def.kind !== 'triggered') continue;
-      runTriggered(ctx, def.effects, trigger, baseEnv({ seat: player.seat, ruleSource: { kind: 'heirloom', id }, defaultDuration: 'night' }));
-    }
-  }
-}
-
 function tollEnv(def: TollDef) {
   return baseEnv({ seat: null, ruleSource: { kind: 'toll', id: def.id }, defaultDuration: 'night', summonSource: 'toll', plumeSource: 'card' });
 }
@@ -169,7 +161,7 @@ export function runTollTrigger(ctx: Ctx, trigger: TriggerId): void {
 }
 
 function finishNightSetup(ctx: Ctx): void {
-  runHeirloomTrigger(ctx, 'night_start');
+  runHeirloomTriggers(ctx, 'night_start');
   if (isOver(ctx.s)) return;
   if (ctx.s.isBossNight) setPhase(ctx, 'boss_intro');
   else if (tollDue(ctx.s)) enterToll(ctx);
@@ -177,16 +169,11 @@ function finishNightSetup(ctx: Ctx): void {
 }
 
 /**
- * boss_intro: the boss engineer's `spawnBoss` places the boss. Until bosses land no boss
- * appears, and the Boss Night runs `turns_per_night` rounds like a regular Night; its end
- * counts as the final victory (`endBosslessBossNight`).
+ * boss_intro: the boss already stands on the board (it spawns at night_setup, bosses.ts
+ * `spawnBoss`); this phase is the intro screen, then the first round starts. The Vigil Boss
+ * Night has no round cap: it ends when the boss dies or Dread is full.
  */
 function runBossIntro(ctx: Ctx): void {
-  spawnBoss(ctx);
-  if (!ctx.s.boss && ctx.s.roundsThisNight === null) {
-    ctx.s.roundsThisNight = ctx.s.config.turns_per_night;
-    addLog(ctx, 'No boss rises tonight: survive the Night to win.');
-  }
   startRound(ctx);
 }
 
@@ -194,7 +181,8 @@ function tollDue(s: GameState): boolean {
   return s.config.tolls && !s.isBossNight && s.night >= 2;
 }
 
-function tollEligible(s: GameState, def: TollDef): boolean {
+/** A Toll's `requires` are met on this Night (§13.4). */
+export function tollEligible(s: GameState, def: TollDef): boolean {
   return def.requires.every((req) => {
     switch (req) {
       case 'moth_die':
@@ -210,7 +198,7 @@ function tollEligible(s: GameState, def: TollDef): boolean {
 }
 
 /** Vigil: the First Light holder. Last Flame: the lowest Glory (ties: turn order from First Light). */
-function tollChooser(s: GameState): number {
+export function tollChooser(s: GameState): number {
   if (s.config.mode === 'vigil') return s.firstLight;
   const order = clockwiseFromFirstLight(s);
   return order.reduce((best, seat) => (s.players[seat].glory < s.players[best].glory ? seat : best), order[0]);
@@ -356,7 +344,8 @@ export function startSeatTurn(ctx: Ctx, seat: number): void {
   if (extra > 0) drawCards(ctx, seat, extra);
   player.flame = Math.min(reg.rules.flameCap, Math.max(0, s.config.flame_per_turn + ruleDelta(s, 'flame_per_turn', seat)));
   for (const p of pieceList(s)) if (p.owner === seat) readyPiece(ctx, p);
-  s.undo.frames = [];
+  tutorialTurnStart(ctx, seat);
+  clearUndo(s);
   emit(ctx, { type: 'turn_started', seat, flame: player.flame });
   addLog(ctx, `${player.name} takes the turn.`, seat);
 }
@@ -387,7 +376,7 @@ export function endSeatTurn(ctx: Ctx, seat: number): void {
   player.turn = freshTurnState(reg);
   syncTurnState(s, seat);
   s.activeSeat = null;
-  s.undo.frames = [];
+  clearUndo(s);
   emit(ctx, { type: 'turn_ended', seat });
   addLog(ctx, `${player.name} ends the turn.`, seat);
   if (!isOver(s)) activateNextSeat(ctx);
@@ -397,6 +386,7 @@ function enterSnuffStrike(ctx: Ctx): void {
   const { s } = ctx;
   s.activeSeat = null;
   for (const hero of heroPieces(s)) hero.smolderedAtPlayersEnd = hero.smoldering;
+  endScriptedTurn(s);
   bossPlayersPhaseEnd(ctx);
   if (isOver(s)) return;
   expireRules(s, 'next_players_phase');
@@ -426,10 +416,11 @@ function burnStep(ctx: Ctx, side: 'snuff' | 'wick'): void {
   }
 }
 
+/** Step 4: 1 damage to each piece still standing on Hot Wax (a boss once, whatever its footprint covers). */
 function hotWaxStep(ctx: Ctx): void {
   const amount = ctx.reg.tiles.byId.hot_wax?.damage ?? 1;
   const onWax = sortReadingOrder(
-    pieceList(ctx.s).filter((p) => p.size === 1 && tileAt(ctx.s, p.pos)?.type === 'hot_wax' && takesHotWax(ctx.reg, p)),
+    pieceList(ctx.s).filter((p) => standsOnHotWax(ctx, p) && takesHotWax(ctx.reg, p)),
     (p) => p.pos,
   );
   for (const p of onWax) {
@@ -511,10 +502,9 @@ function runTally(ctx: Ctx): void {
   else enterDawn(ctx);
 }
 
-/** The Boss Night's round cap was reached (no boss yet in Vigil; boss_rounds in Last Flame). */
+/** The Boss Night's round cap was reached: Last Flame's `boss_rounds` (the Vigil Boss Night has no cap). */
 function endBossNight(ctx: Ctx): void {
-  if (ctx.s.config.mode === 'vigil') endVigil(ctx, 'victory', null);
-  else endLastFlameGame(ctx, 'boss_rounds');
+  if (ctx.s.config.mode === 'last_flame') endLastFlameGame(ctx, 'boss_rounds');
 }
 
 // =============================================================================================

@@ -15,7 +15,7 @@ import {
   planBotTurn,
   validateAction,
 } from '../../../src/engine';
-import type { Action, GameState, Pos } from '../../../src/engine';
+import type { Action, CardTargetChoice, GameState, Pos } from '../../../src/engine';
 
 export type Policy = 'pass' | 'play';
 
@@ -56,10 +56,8 @@ export function playAction(s: GameState, seat: number): Action {
     }
   }
   for (const card of s.players[seat].hand) {
-    const info = cardTargets(s, seat, card.uid);
-    if (!info.playable) continue;
-    const a: Action = { type: 'play_card', seat, cardUid: card.uid, targets: info.steps === 0 ? [] : [info.targets[0].choice] };
-    if (legal(s, a)) return a;
+    const a = cardPlay(s, seat, card.uid, (n) => (n > 0 ? 0 : -1));
+    if (a && legal(s, a)) return a;
   }
   for (const piece of own) {
     if (piece.movesLeft <= 0) continue;
@@ -74,6 +72,31 @@ export function playAction(s: GameState, seat: number): Action {
     }
   }
   return { type: 'end_turn', seat };
+}
+
+/**
+ * Build a complete play_card action by walking the multi-step targeting: `choose(n)` picks an
+ * index among n options (−1 = skip an optional pick). Null when the card cannot be played.
+ */
+export function cardPlay(s: GameState, seat: number, cardUid: string, choose: (n: number) => number): Action | null {
+  let info = cardTargets(s, seat, cardUid);
+  if (!info.playable) return null;
+  let mode: number | undefined;
+  if (info.modeOptions) {
+    const playable = info.modeOptions.map((o, i) => (o.playable ? i : -1)).filter((i) => i >= 0);
+    mode = playable[Math.max(0, choose(playable.length))];
+    info = cardTargets(s, seat, cardUid, { mode });
+  }
+  const targets: CardTargetChoice[] = [];
+  for (let guard = 0; guard < 8 && info.playable; guard++) {
+    if (info.step >= info.steps) break;
+    const pick = choose(info.targets.length);
+    if (info.targets.length === 0 || (pick < 0 && info.complete)) break;
+    targets.push(info.targets[Math.max(0, pick)].choice);
+    info = cardTargets(s, seat, cardUid, { mode, chosen: targets });
+  }
+  if (!info.playable || !info.complete) return null;
+  return { type: 'play_card', seat, cardUid, targets, ...(mode !== undefined ? { mode } : {}) };
 }
 
 function nextAction(s: GameState, policy: Policy): Action {

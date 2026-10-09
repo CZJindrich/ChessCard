@@ -15,7 +15,7 @@ function hideOrder(cards: CardInstance[]): CardInstance[] {
 export function viewFor(s: GameState, seat: number): GameState {
   const view = cloneState(s);
   view.rng = {};
-  view.undo = { frames: [] };
+  view.undo = { frames: [], depth: s.undo.depth };
   view.nightSnapshot = null;
   for (const player of view.players) {
     player.deck = hideOrder(player.deck);

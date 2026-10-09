@@ -111,7 +111,7 @@ describe('rites', () => {
     expect(sqName(pushed.pieces[hulk.id].pos)).toBe('d5');
   });
 
-  it('NEED_FLAME, NOT_IN_HAND, HERO_SMOLDERING, CARD_LIMIT and NOT_ENABLED', () => {
+  it('NEED_FLAME, NOT_IN_HAND, HERO_SMOLDERING and CARD_LIMIT', () => {
     const s = blankScenario('sconce_paladin', 'd2');
     enemyAt(s, 'sootling', 'd3');
     s.players[0].flame = 0;
@@ -122,8 +122,6 @@ describe('rites', () => {
     s.activeRules.push({ rule: 'card_limit', delta: 0, value: 1, seat: null, source: { kind: 'toll', id: 'muffled_nave' }, expires: 'night' });
     const once = act(s, { type: 'play_card', seat: 0, cardUid: spark, targets: [{ kind: 'piece', pieceId: pieceOn(s, 'd3')?.id ?? '' }] }).state;
     expect(cardTargets(once, 0, give(once, 'mend_the_wick'))).toMatchObject({ playable: false, reason: 'CARD_LIMIT', params: { source: 'Muffled Nave' } });
-    const cocoon = give(s, 'cocoon');
-    expect(cardTargets(s, 0, cocoon)).toMatchObject({ playable: false, reason: 'NOT_ENABLED' });
     dealDamage(makeCtx(s), heroPiece(s, 0), 8, { cause: 'intent', sourceKind: 'snuff_attack', sourceId: null, seat: null });
     expect(cardTargets(s, 0, give(s, 'spark'))).toMatchObject({ playable: false, reason: 'HERO_SMOLDERING' });
   });
