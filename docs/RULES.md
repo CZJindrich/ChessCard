@@ -106,7 +106,7 @@ costs Flame and can be used once per turn (not while Smoldering).
 | Hero | HP | ATK | Moves | Strikes | Trait | Hero Power |
 | --- | --- | --- | --- | --- | --- | --- |
 | **Brannoc**, the Sconce Paladin | 8 | 2 | King step | Melee, as move | **Stalwart**: Cannot be pushed or pulled. | **Lantern Oath** (2 Flame): Brannoc and every allied piece adjacent to him gain Ward. |
-| **Velveteen**, the Moth Witch | 6 | 2 | Knight leap | Melee, as move | **Mothmaker**: A Snuff Minion or Soldier killed by her Strike becomes a Velvet Moth you own on that tile (Exhausted, if the unit limit allows). Never for rivals or bosses. Her strikes never Take. | **Flutterswap** (2 Flame): Swap two single-tile, non-structure pieces within 3 of Velveteen. She may be one of them. |
+| **Velveteen**, the Moth Witch | 8 | 2 | Knight leap | Melee, as move | **Mothmaker**: A Snuff Minion or Soldier killed by her Strike becomes a Velvet Moth you own on that tile (Exhausted, if the unit limit allows). Never for rivals or bosses. Her strikes never Take. | **Flutterswap** (2 Flame): Swap two single-tile, non-structure pieces within 3 of Velveteen. She may be one of them. |
 | **Wicklow**, the Lampwright | 6 | 2 | Rook slide 3 | Ranged line, orthogonal, range 4, first hit | **Quick Build**: His Lanterns and Wick Mortars arrive Ready. | **Castle** (1 Flame): Wicklow swaps places with one of his Lanterns or Wick Mortars anywhere on the board. |
 | **Vey**, the Ember Duelist | 6 | 2 | Bishop slide 3 | Melee, as move | **Flourish**: When her own Strike kills, she gets 1 extra Strike this seat turn (at most 2 per seat turn). | **Shadowstep** (1 Flame): Move Vey to an empty, enterable tile adjacent to an enemy within 4 of her. This does not use her Move. |
 <!-- /generated:heroes -->
@@ -147,6 +147,10 @@ Snuff Strike**, and the new enemy acts from the next round.
 - **Strike it** (or hit it with a damaging card) to pop it. There is no Take, and no Glory.
 - A Snuff standing on it also stops it. Summons can never be placed on a Plume.
 
+In Vigil each Night starts with a few Snuff already on the board, and new Plumes appear at setup and
+at the Tallies. **More players, more smoke:** every player adds one starting enemy and one Plume per
+placement.
+
 ## 7. Falling, relighting and Dread (Vigil)
 
 A hero at 0 HP becomes a **Smoldering Wick** on its tile. Its units still act. An adjacent ally can
@@ -165,7 +169,7 @@ carries over between Nights. *(generated)*
 | A hero falls | +1 |
 | A hero relights itself at the Tally | +1 |
 | Each Tally on the Boss Night (the boss tolls) | +1 |
-| Dawn of a regular Night, per Candle still lit | −1 (never below 0) |
+| Dawn of a regular Night, while a Candle is still lit | −1 (never below 0) |
 <!-- /generated:dread -->
 
 **Stars** on victory: ★ win; ★★ win with Dread under ⅔ of the Hour Candle; ★★★ win with Dread under
@@ -217,15 +221,16 @@ Everything above applies, with these changes:
 The boss is a 2×2 piece. It declares **every** intent of its current phase each Snuff Move, and its
 intents resolve before all others. It cannot be pushed, pulled or swapped, the Gloam and the Snuff
 can't hurt it, and there is never a Take against it. At ⅔ and ⅓ of its HP it enters a new phase.
-Its HP grows with the number of players (times the difficulty's boss multiplier). When the boss
-dies, every Snuff on the board dies with it.
+Its HP grows with the number of players (times the difficulty's boss multiplier): in Vigil every
+player adds the boss's whole solo HP, and every player beyond the first adds one more copy of its
+**co-op intent** each Snuff Move. When the boss dies, every Snuff on the board dies with it.
 
 <!-- generated:bosses -->
 | Boss | HP | Special | Weakness | Phases: moves; intents |
 | --- | --- | --- | --- | --- |
-| **Hush Hierophant**<br>*The Bell That Swallows Song* | 25 + 10 per player | Silencing Peal limits each player to 1 card next turn. | Hollow bell: Strikes from pieces adjacent to it deal +1 damage. | 1: 1 orthogonal step; Bell Drop, Hushwave<br>2: King step; Bell Drop, Hushwave, Silencing Peal<br>3: King step; Bell Drop, Bell Drop, Hushwave, Silencing Peal |
-| **The Guttered King**<br>*Monarch of Melted Wax* | 48 + 12 per player | Immune to Hot Wax, and spits more of it. | Box him in: block all 8 escape steps for CHECKMATE. | 1: King step; Ladle Slam, Sceptre Sweep<br>2: King step; Ladle Slam, Sceptre Sweep, Wax Spit<br>3: King step; Ladle Slam, Sceptre Sweep, Sceptre Sweep, Wax Spit |
-| **Nocturna**<br>*Daughter of the Moth-Moon* | 10 + 11 per player | Flies over everything. Hunger eats the brightest light and heals her. | Light lures her: Hunger always bites the brightest light. Bait her with a Lantern or a Lit Shrine. | 1: Queen slide 2, flying; Wing Gust, Hunger<br>2: Queen slide 2, flying; Wing Gust, Hunger, Hunger<br>3: Queen slide 2, flying; Wing Gust, Hunger, Dust Storm |
+| **Hush Hierophant**<br>*The Bell That Swallows Song* | Vigil: 35 per player<br>Last Flame: 25 + 10 per hero | Silencing Peal limits each player to 1 card next turn. | Hollow bell: Strikes from pieces adjacent to it deal +1 damage. | 1: 1 orthogonal step; Bell Drop, Hushwave<br>2: King step; Bell Drop, Hushwave, Silencing Peal<br>3: King step; Bell Drop, Bell Drop, Hushwave, Silencing Peal<br>Co-op: +1 Bell Drop per extra player |
+| **The Guttered King**<br>*Monarch of Melted Wax* | Vigil: 60 per player<br>Last Flame: 48 + 12 per hero | Immune to Hot Wax, and spits more of it. | Box him in: block all 8 escape steps for CHECKMATE. | 1: King step; Ladle Slam, Sceptre Sweep<br>2: King step; Ladle Slam, Sceptre Sweep, Wax Spit<br>3: King step; Ladle Slam, Sceptre Sweep, Sceptre Sweep, Wax Spit<br>Co-op: +1 Sceptre Sweep per extra player |
+| **Nocturna**<br>*Daughter of the Moth-Moon* | Vigil: 21 per player<br>Last Flame: 10 + 11 per hero | Flies over everything. Hunger eats the brightest light and heals her. | Light lures her: Hunger always bites the brightest light. Bait her with a Lantern or a Lit Shrine. | 1: Queen slide 2, flying; Wing Gust, Hunger<br>2: Queen slide 2, flying; Wing Gust, Hunger, Hunger<br>3: Queen slide 2, flying; Wing Gust, Hunger, Dust Storm<br>Co-op: +1 Dust Storm per extra player |
 <!-- /generated:bosses -->
 
 <details>
@@ -250,7 +255,8 @@ dies, every Snuff on the board dies with it.
 **The Guttered King's CHECKMATE.** Count his *escapes*: how many of his 8 one-step moves are open.
 Your pieces, his own Gutter Pawns, Pillars, Candles and the board edge all block (Hot Wax doesn't).
 At 1–2 escapes the board shouts **CHECK!**; if he has **0 escapes at the end of your turns** he takes
-15% of his max HP (Ward can't stop it) and a crown socket fills — up to three times per fight.
+15% of his max HP (in Vigil, of his solo HP; Ward can't stop it) and a crown socket fills — up to
+three times per fight.
 
 ## 10. The board
 
@@ -360,13 +366,14 @@ neutral pool rise from the wax tray — take one (two after a Curse) or skip. Th
 ## 12. Difficulty *(generated)*
 
 Pick a difficulty on the Setup screen (Quick Play uses Dusk; after a loss it offers Candlelit).
-Every number can also be changed one by one in the **Advanced** panel.
+Every number can also be changed one by one in the **Advanced** panel. The same presets hold for a
+co-op table: the Snuff and the boss already grow with the number of players.
 
 <!-- generated:difficulty -->
 | Difficulty | Chip | Dread start / max | Enemies / Plumes | +1 HP to | Boss HP | Heal at Dawn | Extra Smokestack | Retry |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | **Candlelit** | 1 candle · Gentle | 0 / 14 | −1 / −1 | — | ×0.80 | 6 | Off | On |
 | **Dusk** | 2 candles · Normal | 0 / 12 | 0 / 0 | — | ×1.00 | 4 | Off | On |
-| **Midnight** | 3 candles · Hard | 2 / 12 | 0 / 0 | Soldiers, Elites, structures | ×1.20 | 3 | On | Off |
-| **Witching Hour** | 4 candles · Brutal | 3 / 12 | +1 / 0 | Every Snuff | ×1.30 | 2 | On | Off |
+| **Midnight** | 3 candles · Hard | 1 / 12 | 0 / 0 | Soldiers, Elites, structures | ×1.20 | 3 | On | Off |
+| **Witching Hour** | 4 candles · Brutal | 2 / 12 | +1 / 0 | Every Snuff | ×1.30 | 2 | On | Off |
 <!-- /generated:difficulty -->

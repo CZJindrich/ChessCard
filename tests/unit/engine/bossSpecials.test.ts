@@ -1,11 +1,12 @@
 /**
  * Boss specials and phases (GDD §10.1-10.4): hollow_bell, Escapes / CHECK / CHECKMATE
- * (smothered_mate), phase thresholds crossed in one hit, and every phase's onEnter.
+ * (smothered_mate), phase thresholds crossed in one hit, every phase's onEnter, and the Vigil
+ * co-op intents.
  */
 import { describe, expect, it } from 'vitest';
 import { getContent, legalStrikes, openEscapes, sq, sqName } from '../../../src/engine';
 import type { GameState } from '../../../src/engine';
-import { bossPlayersPhaseEnd, bossSnuffMove } from '../../../src/engine/bosses';
+import { bossPlayersPhaseEnd, bossSnuffMove, bossTurnIntents, vigilBossMaxHp } from '../../../src/engine/bosses';
 import { dealDamage } from '../../../src/engine/combat';
 import { makeCtx } from '../../../src/engine/state';
 import { blankBoss, bossNight, bossPiece } from './bossHelpers';
@@ -130,6 +131,22 @@ describe('CHECKMATE (§10.3)', () => {
     bossPlayersPhaseEnd(ctx);
     expect(eventsOf(ctx.events, 'checkmate')).toHaveLength(0);
     expect(s.boss?.escapes).toBe(1);
+  });
+
+  it('Vigil co-op: the damage is 15% of his solo max HP, not of the co-op max HP', () => {
+    const s = bossNight({ boss: 'guttered_king', seats: 2, overrides: { boss_hp_multiplier: 1 } });
+    const king = bossPiece(s);
+    for (const p of Object.values(s.pieces)) if (p.kind === 'enemy' || p.kind === 'candle') delete s.pieces[p.id];
+    king.pos = sq('a1');
+    for (const t of ['a1', 'b1', 'a2', 'b2', 'b3', 'c2', 'c3', 'a3', 'c1']) setTile(s, t, 'flagstone');
+    heroPiece(s, 0).pos = sq('b3');
+    heroPiece(s, 1).pos = sq('c2');
+    expect(s.boss?.maxHp).toBe(120);
+    const ctx = makeCtx(s);
+    bossPlayersPhaseEnd(ctx);
+    const solo = vigilBossMaxHp(reg.bosses.byId.guttered_king, 1, 0, 1);
+    expect(eventsOf(ctx.events, 'checkmate')[0]).toMatchObject({ damage: Math.ceil((solo * 15) / 100), crowns: 1 });
+    expect(bossPiece(s).hp).toBe(120 - 9);
   });
 
   it('Last Flame: the damage is split equally among the players with a piece next to him', () => {
@@ -273,5 +290,29 @@ describe('multi-tile rules (§6.7)', () => {
     s.activeSeat = null;
     const moved = bossPiece(act(s, { type: 'advance' }).state).pos;
     expect(Math.max(Math.abs(moved.x - 3), Math.abs(moved.y - 5))).toBe(1);
+  });
+});
+
+describe('Vigil co-op intents (§10.1)', () => {
+  it('each seat beyond the first adds one copy of the co-op intent, after the phase list', () => {
+    for (const boss of ['hush_hierophant', 'guttered_king', 'nocturna']) {
+      const def = reg.bosses.byId[boss];
+      for (let seats = 1; seats <= 4; seats++) {
+        const s = bossNight({ boss, seats });
+        const extra = Array.from({ length: seats - 1 }, () => def.coopIntent);
+        expect(bossTurnIntents(s, reg, def, def.phases[0])).toEqual([...def.phases[0].intents, ...extra]);
+      }
+    }
+  });
+
+  it('a 3-seat Hierophant declares Bell Drop three times at its first Snuff Move; Last Flame adds none', () => {
+    const s = bossNight({ boss: 'hush_hierophant', seats: 3 });
+    for (const p of Object.values(s.pieces)) if (p.kind === 'enemy') delete s.pieces[p.id];
+    s.intents = [];
+    bossSnuffMove(makeCtx(s));
+    expect(s.intents.map((i) => i.bossIntentId)).toEqual(['bell_drop', 'hushwave', 'bell_drop', 'bell_drop']);
+    const lf = bossNight({ boss: 'hush_hierophant', seats: 3, mode: 'last_flame' });
+    const def = reg.bosses.byId.hush_hierophant;
+    expect(bossTurnIntents(lf, reg, def, def.phases[0])).toEqual(def.phases[0].intents);
   });
 });

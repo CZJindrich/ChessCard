@@ -26,7 +26,7 @@
     "title": "the Moth Witch",
     "displayName": "Velveteen, the Moth Witch",
     "className": "Moth Witch",
-    "hp": 6,
+    "hp": 8,
     "atk": 2,
     "move": { "type": "leap", "offsets": "knight" },
     "attack": { "kind": "melee", "reach": "as_move", "area": "single", "damage": "atk", "take": false, "hits": "enemies" },

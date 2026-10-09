@@ -340,9 +340,10 @@ function boxingSeats(s: GameState, boss: Piece): number[] {
 }
 
 /**
- * CHECKMATE (§10.3): with 0 Escapes the King takes ⌈damagePct % of max HP⌉, which Ward cannot
- * stop, and a crown socket fills, at most `maxCrowns` times per fight. The damage is split
- * equally among the seats with a piece next to him (a sole seat gets the kill credit too).
+ * CHECKMATE (§10.3): with 0 Escapes the King takes ⌈damagePct % of max HP⌉ (Vigil: of his solo
+ * max HP, so co-op scaling does not grow it), which Ward cannot stop, and a crown socket fills, at
+ * most `maxCrowns` times per fight. The damage is split equally among the seats with a piece next
+ * to him (a sole seat gets the kill credit too).
  */
 function checkmate(ctx: Ctx, found: ActiveBoss, args: Record<string, number | string | boolean>): void {
   const { s, reg } = ctx;

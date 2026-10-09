@@ -1159,8 +1159,6 @@ export interface RuleConstants {
   dawnRelightHp: number;
   /** Guttered King: CHECK! shows at these escape counts (CHECKMATE numbers live on the boss special). */
   checkWarnEscapes: number[];
-  /** TEMP experiment knobs. */
-  xMothmaker: { rivalUnits: boolean; ready: boolean };
   /**
    * Vigil co-op scaling (§10.1, §13.3.2): what each seat beyond the first adds. Initial enemies
    * and Plumes per placement: that many more. Boss HP: that share of the solo HP more. Boss

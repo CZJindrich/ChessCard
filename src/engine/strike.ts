@@ -220,19 +220,11 @@ function flourish(ctx: Ctx, striker: Piece): void {
 /** Mothmaker: a Minion or Soldier slain by Velveteen's Strike becomes her Velvet Moth (§8.1). */
 function mothmaker(ctx: Ctx, striker: Piece, victim: Piece): void {
   const seat = striker.owner;
-  if (seat === null || !hasTrait(ctx, striker, 'mothmaker')) return;
-  const x = ctx.reg.rules.xMothmaker;
-  const rivalUnit = x.rivalUnits && victim.kind === 'unit' && victim.owner !== null && victim.owner !== seat;
-  if (victim.kind !== 'enemy' && !rivalUnit) return;
-  const rank = victim.kind === 'enemy' ? ctx.reg.enemies.byId[victim.defId]?.rank : 'minion';
+  if (seat === null || !hasTrait(ctx, striker, 'mothmaker') || victim.kind !== 'enemy') return;
+  const rank = ctx.reg.enemies.byId[victim.defId]?.rank;
   if (rank !== 'minion' && rank !== 'soldier') return;
   if (unitLimitReached(ctx.s, seat) || !summonTileTest(ctx.s)(victim.pos)) return;
-  const moth = createUnit(ctx, 'velvet_moth', seat, victim.pos, 'trait');
-  if (x.ready && moth.exhausted) {
-    moth.exhausted = false;
-    moth.movesLeft = 1;
-    moth.strikesLeft = 1;
-  }
+  createUnit(ctx, 'velvet_moth', seat, victim.pos, 'trait');
 }
 
 function onKill(ctx: Ctx, striker: Piece, victim: Piece): void {

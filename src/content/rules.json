@@ -19,7 +19,6 @@
   "selfRelightHp": 1,
   "dawnRelightHp": 1,
   "checkWarnEscapes": [1, 2],
-  "xMothmaker": { "rivalUnits": false, "ready": false },
   "coopScaling": { "enemiesPerExtraSeat": 1, "plumesPerExtraSeat": 1, "bossHpPerExtraSeat": 1, "bossIntentsPerExtraSeat": 1 },
   "glory": {
     "rivalUnit": 1,

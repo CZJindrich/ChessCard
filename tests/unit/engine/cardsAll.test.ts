@@ -148,7 +148,8 @@ describe('neutral cards', () => {
     expect(relight.targets[0].preview.relit).toEqual([ally.id]);
     expect(validateAction(s, { type: 'play_card', seat: 0, cardUid: uid, targets: [{ kind: 'piece', pieceId: ally.id }] })).toMatchObject({ ok: false, reason: 'INVALID_ACTION' });
     const relit = playCard(s, uid, [ally], { mode: 0 }).state;
-    expect(heroPiece(relit, 1)).toMatchObject({ smoldering: false, hp: 3, exhausted: true });
+    // ⌈max HP / 2⌉: Velveteen has 8 HP.
+    expect(heroPiece(relit, 1)).toMatchObject({ smoldering: false, hp: 4, exhausted: true });
     hero(s).hp = 3;
     expect(hero(playCard(s, uid, [hero(s)], { mode: 1 }).state).hp).toBe(6);
   });
@@ -246,11 +247,11 @@ describe('Moth Witch cards', () => {
     expect(pieceOn(playCard(s, giveCard(s, 'loose_a_moth'), ['d4']).state, 'd4')?.defId).toBe('velvet_moth');
   });
 
-  it('velvet_pull pulls an enemy within 4 up to 3 toward the hero', () => {
+  it('velvet_pull pulls an enemy within 4 up to 3 toward the hero, then deals 1 damage to it', () => {
     const s = blankScenario('moth_witch', 'd2');
     const hound = enemyAt(s, 'smokehound', 'd6');
     const after = playCard(s, giveCard(s, 'velvet_pull'), [hound]).state;
-    expect(after.pieces[hound.id]).toMatchObject({ pos: sq('d3'), lastDisplacedBy: 0 });
+    expect(after.pieces[hound.id]).toMatchObject({ pos: sq('d3'), hp: hound.hp - 1, lastDisplacedBy: 0 });
   });
 
   it('moth_dust Dazes an enemy: its locked intent is cancelled', () => {

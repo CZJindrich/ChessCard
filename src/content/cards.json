@@ -349,8 +349,11 @@
     "starter": true,
     "starterCopies": 2,
     "target": { "kind": "piece", "side": "enemy", "range": { "from": "hero", "max": 4 } },
-    "effects": [{ "op": "pull", "distance": 3, "toward": "hero" }],
-    "text": "Pull an enemy within 4 up to 3 tiles toward your hero.",
+    "effects": [
+      { "op": "pull", "distance": 3, "toward": "hero" },
+      { "op": "damage", "amount": 1 }
+    ],
+    "text": "Pull an enemy within 4 up to 3 tiles toward your hero, then deal 1 damage to it.",
     "flavor": "Come closer, dear smoke. I only wish to see you properly.",
     "art": { "sigil": ["hand", "spiral"], "accent": "#F09AD0" }
   },

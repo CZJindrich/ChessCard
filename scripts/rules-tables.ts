@@ -150,6 +150,12 @@ function gloryTable(content: ContentRegistry): string {
   return markdownTable(['Event', 'Glory'], rows);
 }
 
+/** Dawn recovery: −1 per lit Candle up to `dawnMax`; a cap of one Candle's worth reads as "while a Candle is lit". */
+function dawnRow(dread: ContentRegistry['rules']['dread']): Row {
+  if (dread.dawnMax <= -dread.dawnPerCandle) return ['Dawn of a regular Night, while a Candle is still lit', `${signed(-dread.dawnMax)} (never below 0)`];
+  return ['Dawn of a regular Night, per Candle still lit', `${signed(dread.dawnPerCandle)}, at most ${signed(-dread.dawnMax)} (never below 0)`];
+}
+
 function dreadTable(content: ContentRegistry): string {
   const dread = content.rules.dread;
   const rows: Row[] = [
@@ -158,7 +164,7 @@ function dreadTable(content: ContentRegistry): string {
     ['A hero falls', signed(dread.heroFalls)],
     ['A hero relights itself at the Tally', signed(dread.selfRelight)],
     ['Each Tally on the Boss Night (the boss tolls)', signed(dread.bossToll)],
-    ['Dawn of a regular Night, per Candle still lit', `${signed(dread.dawnPerCandle)} (never below 0)`],
+    dawnRow(dread),
   ];
   return markdownTable(['Event', 'Dread'], rows);
 }

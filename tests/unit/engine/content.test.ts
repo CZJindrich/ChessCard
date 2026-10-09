@@ -150,7 +150,7 @@ describe('numbers match the GDD', () => {
       return [h.displayName, h.hp, h.atk, h.powerCost, h.flame];
     };
     expect(row('sconce_paladin')).toEqual(['Brannoc, the Sconce Paladin', 8, 2, 2, '#F4B942']);
-    expect(row('moth_witch')).toEqual(['Velveteen, the Moth Witch', 6, 2, 2, '#F09AD0']);
+    expect(row('moth_witch')).toEqual(['Velveteen, the Moth Witch', 8, 2, 2, '#F09AD0']);
     expect(row('lampwright')).toEqual(['Wicklow, the Lampwright', 6, 2, 1, '#5FE0C8']);
     expect(row('ember_duelist')).toEqual(['Vey, the Ember Duelist', 6, 2, 1, '#FFF3C4']);
     expect(content.heroes.byId.ember_duelist.flameEdge).toBe('#E8742C');
@@ -169,7 +169,7 @@ describe('numbers match the GDD', () => {
       taper_captain: [2, 2, '', 'rally_the_captain'],
       wickhorse: [2, 2, '', 'saddle_the_wickhorse'],
       incense_acolyte: [2, 1, 'censer', 'ordain_an_acolyte'],
-      sconce_squire: [3, 1, 'shieldbearer', 'call_the_squire'],
+      sconce_squire: [2, 2, 'shieldbearer', 'call_the_squire'],
       brass_ram: [4, 2, 'battering', 'muster_the_ram'],
       velvet_moth: [1, 1, '', 'loose_a_moth'],
       silkspinner: [2, 1, 'webs', 'spin_the_silk'],

@@ -1251,7 +1251,6 @@ const ruleConstants = obj<RuleConstants>({
   selfRelightHp: req(int(1, 9)),
   dawnRelightHp: req(int(1, 9)),
   checkWarnEscapes: req(arr(int(0, 8), { min: 1, unique: true })),
-  xMothmaker: req(obj<RuleConstants['xMothmaker']>({ rivalUnits: req(bool), ready: req(bool) })),
   coopScaling: req(
     obj<RuleConstants['coopScaling']>({
       enemiesPerExtraSeat: req(int(0, 4)),

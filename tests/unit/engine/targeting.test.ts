@@ -65,14 +65,20 @@ describe('choices', () => {
     expect(validateAction(s, { type: 'play_card', seat: 0, cardUid: board, targets: [{ kind: 'piece', pieceId: hound.id }] })).toMatchObject({ ok: false, reason: 'INVALID_TARGET' });
   });
 
-  it('summons never land in the Gloam or on a Plume; Velvet Pull cannot target a piece immune to pulls', () => {
+  it('summons never land in the Gloam or on a Plume; a pure move cannot target a piece immune to it', () => {
     const s = blankScenario('moth_witch', 'd2');
     s.board.tiles[sq('d3').y * s.board.w + sq('d3').x].gloam = true;
     const summon = optionSquares(cardTargets(s, 0, giveCard(s, 'loose_a_moth')));
     expect(summon).not.toContain('d3');
     expect(summon).toContain('e3');
-    enemyAt(s, 'smokestack', 'd5');
-    expect(cardTargets(s, 0, giveCard(s, 'velvet_pull'))).toMatchObject({ playable: false, reason: 'IMMUNE' });
+    const stack = enemyAt(s, 'smokestack', 'd5');
+    // Velvet Pull also deals 1 damage, so a pull-immune Smokestack is a target: it takes the damage and stays put.
+    expect(optionSquares(cardTargets(s, 0, giveCard(s, 'velvet_pull')))).toEqual(['d5']);
+    const pulled = playCard(s, giveCard(s, 'velvet_pull'), [stack]).state;
+    expect(pulled.pieces[stack.id]).toMatchObject({ pos: sq('d5'), hp: stack.hp - 1 });
+    const duel = blankScenario('ember_duelist', 'd4');
+    enemyAt(duel, 'smokestack', 'd5');
+    expect(cardTargets(duel, 0, giveCard(duel, 'feint'))).toMatchObject({ playable: false, reason: 'IMMUNE' });
   });
 
   it('multi-step answers report the step, the remaining picks and the range ring of the current pick', () => {

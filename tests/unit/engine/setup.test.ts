@@ -50,7 +50,8 @@ describe('createGame: Vigil', () => {
       expect(pieces.filter((p) => p.kind === 'candle')).toHaveLength(3);
       const enemies = pieces.filter((p) => p.side === 'snuff');
       expect(enemies).toHaveLength(Math.max(1, seatCount + 1 + s.config.initial_enemies_mod));
-      expect(s.plumes).toHaveLength(Math.max(1, 1 + Math.floor(seatCount / 2) + s.config.plumes_mod));
+      // Co-op scaling (§13.3.2): each seat beyond the first adds 1 enemy and 1 Plume per placement.
+      expect(s.plumes).toHaveLength(Math.max(1, seatCount + s.config.plumes_mod));
       expect(s.vigil).toMatchObject({ dread: s.config.starting_dread, dreadMax: s.config.dread_max });
       // Every seat readies itself (bots deploy and Ready through botChoice).
       expect(s.players.map((p) => p.ready)).toEqual(kinds.map(() => false));

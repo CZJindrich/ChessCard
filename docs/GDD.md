@@ -83,6 +83,7 @@ Other registries (modes, difficulties, lengths, Houses, bots, ranks, runes, phas
 - `src/engine/rng.ts` provides one mulberry32 generator and an FNV-1a `seedFromString`. Keep both, and add named streams (Appendix B.3): one mulberry32 state per stream, each seeded with `seedFromString(seed + "\u0000" + stream)`.
 - `src/audio` already ships the sound effects and the generative music. §16.11 and §16.12 map game events to the existing `SfxName` and `MusicMood` values. The audio defaults in `src/audio/settings.ts` (master 80%, SFX 90%, music 60%) are the presentation defaults in §14.4.
 - `@fontsource/cinzel`, `@fontsource/cinzel-decorative` and `@fontsource/im-fell-english` are installed. Add `@fontsource/eb-garamond` for rules text (§16.3).
+- Balance constants that are not settings-code parameters live in the content, so mods can tune them: `rules.json` holds `coopScaling` (Vigil co-op scaling: initial enemies, Plumes, boss HP and boss intents per seat beyond the first, §10.1 and §13.3.2) and `dread.dawnPerCandle` / `dread.dawnMax` (Dawn recovery, §13.6); each boss in `bosses.json` names its `coopIntent`.
 
 ---
 
@@ -455,7 +456,7 @@ The minimum deck size is 8.
 | Id | Name | Type | Cost | Rarity | Text |
 |---|---|---|---|---|---|
 | `loose_a_moth` | Loose a Moth | Summon | 1 | Common | Summon a Velvet Moth. |
-| `velvet_pull` | Velvet Pull | Rite | 1 | Common | Pull an enemy within 4 up to 3 tiles toward your hero. |
+| `velvet_pull` | Velvet Pull | Rite | 1 | Common | Pull an enemy within 4 up to 3 tiles toward your hero, then deal 1 damage to it. |
 | `moth_dust` | Moth Dust | Rite | 2 | Common | Daze an enemy within 3. |
 | `cocoon` | Cocoon | Charm | 1 | Common | Attach to an allied piece within 3: it heals 1 HP at every Tally. |
 | `spin_the_silk` | Spin the Silk | Summon | 2 | Common | Summon a Silkspinner. |
@@ -496,7 +497,7 @@ Heroes are shown at 1.2× scale with a halo sigil. HP carries over between Night
 | Id | Display name | HP | ATK | Move | Strike | Trait | Power (cost) |
 |---|---|---|---|---|---|---|---|
 | `sconce_paladin` | Brannoc, the Sconce Paladin | 8 | 2 | King step | Melee, as move | `stalwart`: cannot be pushed or pulled. | `lantern_oath` (2 Flame): Brannoc and every allied piece adjacent to him gain Ward. |
-| `moth_witch` | Velveteen, the Moth Witch | 6 | 2 | Knight leap | Melee, as move (no Take) | `mothmaker`: a Snuff Minion or Soldier killed by her Strike becomes a Velvet Moth you own on that tile (Exhausted, if the unit limit allows). Never for rivals or bosses. | `flutterswap` (2 Flame): swap two single-tile, non-structure pieces within 3 of her. She may be one of them. |
+| `moth_witch` | Velveteen, the Moth Witch | 8 | 2 | Knight leap | Melee, as move (no Take) | `mothmaker`: a Snuff Minion or Soldier killed by her Strike becomes a Velvet Moth you own on that tile (Exhausted, if the unit limit allows). Never for rivals or bosses. | `flutterswap` (2 Flame): swap two single-tile, non-structure pieces within 3 of her. She may be one of them. |
 | `lampwright` | Wicklow, the Lampwright | 6 | 2 | Rook slide 3 | Ranged line, orthogonal, range 4, `firstHit` | `quick_build`: his Lanterns and Wick Mortars arrive Ready. | `castle` (1 Flame): Wicklow swaps places with one of his Lanterns or Wick Mortars anywhere on the board. |
 | `ember_duelist` | Vey, the Ember Duelist | 6 | 2 | Bishop slide 3 | Melee, as move | `flourish`: when her own Strike kills, she gets 1 extra Strike this seat turn (at most 2 per seat turn). | `shadowstep` (1 Flame): move Vey to an empty, enterable tile adjacent to an enemy within 4 of her. This does not use her Move. |
 
@@ -515,7 +516,7 @@ Heroes are shown at 1.2× scale with a halo sigil. HP carries over between Night
 | `taper_captain` | Taper Captain | 2 | 2 | King step | As move | — | `rally_the_captain` |
 | `wickhorse` | Wickhorse | 2 | 2 | Knight leap | As move | — | `saddle_the_wickhorse` |
 | `incense_acolyte` | Incense Acolyte | 2 | 1 | Bishop slide 2 | As move | **Censer** (`censer`): at Tally, heals 1 HP to each adjacent allied piece (not itself). | `ordain_an_acolyte` |
-| `sconce_squire` | Sconce Squire | 3 | 1 | King step | As move | **Shieldbearer** (`shieldbearer`): arrives with Ward. | `call_the_squire` |
+| `sconce_squire` | Sconce Squire | 2 | 2 | King step | As move | **Shieldbearer** (`shieldbearer`): arrives with Ward. | `call_the_squire` |
 | `brass_ram` | Brass Ram | 4 | 2 | Rook slide 2 | As move | **Battering** (`battering`): a target that survives its Strike is pushed 2. | `muster_the_ram` |
 | `velvet_moth` | Velvet Moth | 1 | 1 | Queen slide 2, flying | As move | — | `loose_a_moth` |
 | `silkspinner` | Silkspinner | 2 | 1 | King step | Ranged line, 8 directions, range 3, `firstHit` | **Webs** (`webs`): its Strike applies Dazed. | `spin_the_silk` |
@@ -599,14 +600,19 @@ One routine places every spawn, summon or teleport that names an anchor: boss su
 
 ### 10.1 Common rules
 - **Size:** 2×2. All bosses are immune to displacement, Gloam and Snuff attacks.
-- **HP:** round_half_up((base + perPlayer × P) × `boss_hp_multiplier`).
+- **HP:**
   - P = number of Vigil seats (AI allies included), or the number of Last Flame heroes not eliminated at the start of the Boss Night (minimum 1).
-  - Example: Hush Hierophant, solo, `witching_hour`: (25 + 10) × 1.3 = 45.5, which rounds to 46.
+  - **Solo HP** = base + perPlayer.
+  - **Vigil:** round_half_up(solo HP × P × `boss_hp_multiplier`). Every seat brings the boss's whole solo HP again (co-op scaling, below).
+  - **Last Flame:** round_half_up((base + perPlayer × P) × `boss_hp_multiplier`).
+  - Example: Hush Hierophant, solo, `witching_hour`: (25 + 10) × 1.3 = 45.5, which rounds to 46. With 2 seats at `dusk`: 35 × 2 = 70.
 - **Phases:** phase 2 starts when HP ≤ ⌊max HP × 2/3⌋, and phase 3 when HP ≤ ⌊max HP × 1/3⌋.
   - If one hit crosses both thresholds, both `onEnter` effects run, in order.
   - Damage is not capped at thresholds.
   - New phase intents start at the next Snuff Move. Intents already locked still resolve.
 - **Intents:** every listed intent is declared at every Snuff Move, in listed order. Boss intents resolve before all enemy intents. Duplicate intents pick different targets when possible.
+- **Co-op intent (Vigil):** each boss names one co-op intent. With P seats it declares that intent P − 1 more times at every Snuff Move, after its phase's list: Hierophant `bell_drop`, Guttered King `sceptre_sweep`, Nocturna `dust_storm`.
+- **Co-op scaling (Vigil)** in one line: each seat beyond the first adds 1 initial enemy, 1 Plume per placement (§13.3.2), the boss's solo HP and 1 co-op intent. The four numbers live in `rules.json` (`coopScaling`), so mods can change them.
 - **Dazed:** cancels the boss's last intent in the queue.
 - **Movement:**
   - A step shifts the whole footprint by one vector. It is legal only if every newly entered tile is on the board, enterable, empty, and not a Pillar. Tiles the boss is immune to count as enterable.
@@ -615,7 +621,7 @@ One routine places every spawn, summon or teleport that names an anchor: boss su
 - **Death:** the boss's death wins the Night in Vigil. In both modes it removes every Snuff on the board, the Clapper included.
 
 ### 10.2 Hush Hierophant — "The Bell That Swallows Song"
-- **HP:** base 25, perPlayer 10. **Immune:** displacement, Gloam.
+- **HP:** base 25, perPlayer 10 (solo 35). **Immune:** displacement, Gloam. **Co-op intent:** `bell_drop`.
 - **Art:** a riveted iron bell with a smoke robe and a coal-red clapper.
 
 | Phase | Move | Intents | On enter |
@@ -628,7 +634,7 @@ One routine places every spawn, summon or teleport that names an anchor: boss su
 - **Weakness:** "Hollow bell: Strikes from pieces adjacent to it deal +1 damage." (Cards do not get the bonus.)
 
 ### 10.3 The Guttered King — "Monarch of Melted Wax"
-- **HP:** base 48, perPlayer 12. **Immune:** displacement, Gloam, Hot Wax.
+- **HP:** base 48, perPlayer 12 (solo 60). **Immune:** displacement, Gloam, Hot Wax. **Co-op intent:** `sceptre_sweep`.
 - **Art:** a mountain of melted candles crowned with 7 moonfire wicks.
 
 | Phase | Move | Intents | On enter |
@@ -641,14 +647,14 @@ One routine places every spawn, summon or teleport that names an anchor: boss su
 - **Escapes** = how many of his 8 step vectors are currently legal. Hot Wax counts as open. Blocking tiles: the edge, Pillars, any piece (his own Gutter Pawns included), Vigil Candles, Wicks and Gloam.
 - **CHECK!** shows when Escapes is 1 or 2.
 - **CHECKMATE** happens when Escapes is 0 at the end of the players phase.
-  - He takes ⌈15% of max HP⌉ damage, which ignores Ward, and one `crown_socket` fills.
+  - He takes ⌈15% of his max HP⌉ damage, which ignores Ward, and one `crown_socket` fills. In Vigil the 15% is of his **solo** max HP (solo HP × `boss_hp_multiplier`), so a big team that boxes him in easily does not also get a bigger reward.
   - This can happen again on later rounds, at most 3 times per fight.
   - In Last Flame, Checkmate damage is split equally among the players who have a piece adjacent to him.
 - **Special rule:** "Immune to Hot Wax, and spits more of it."
 - **Weakness:** "Box him in: block all 8 escape steps for CHECKMATE."
 
 ### 10.4 Nocturna — "Daughter of the Moth-Moon"
-- **HP:** base 10, perPlayer 11. **Immune:** displacement, Gloam, Hot Wax. Flying.
+- **HP:** base 10, perPlayer 11 (solo 21). **Immune:** displacement, Gloam, Hot Wax. Flying. **Co-op intent:** `dust_storm`.
 - **Art:** stained-glass moth wings and an abdomen glowing with eaten light.
 
 | Phase | Move | Intents | On enter |
@@ -800,7 +806,7 @@ If the preferred category is absent (for example, Candles in Last Flame), the en
 | A hero falls | +1 |
 | A hero self-relights at Tally (§13.1.3) | +1 |
 | Each Tally on the Boss Night (the boss tolls) | +1 |
-| Dawn of a regular Night, per Vigil Candle still lit | −1 (not below 0) |
+| Dawn of a regular Night, while at least one Vigil Candle is still lit | −1 (not below 0) |
 
 - **Thresholds** are cosmetic only (darkness and music): `dimming` = ⌊M/3⌋, `deep_dark` = ⌊2M/3⌋, `long_night_falls` = M.
   - M = 12: 4, 8 and 12.
@@ -935,9 +941,10 @@ Solo concedes at once. Co-op needs a unanimous vote.
 | | Vigil, regular Night | Vigil, Boss Night | Last Flame |
 |---|---|---|---|
 | Initial enemies | P + tier + `initial_enemies_mod` (minimum 1) | P + `initial_enemies_mod` (minimum 0) | §13.2.1 (regular Nights); 0 on the Boss Night |
-| Plumes per placement | max(1, 1 + ⌊P/2⌋ + `plumes_mod`), +1 with `black_sun` | Same | §13.2.5 |
+| Plumes per placement | max(1, P + `plumes_mod`), +1 with `black_sun` | Same | §13.2.5 |
 | Extra Smokestack | 1 on regular Nights of tier ≥ 2 when `extra_smokestack` is on | — | Same rule, placed in the centre |
 
+- P = number of Vigil seats. Each seat beyond the first adds 1 initial enemy and 1 Plume per placement (`coopScaling.enemiesPerExtraSeat` and `plumesPerExtraSeat` in `rules.json`); the boss side of co-op scaling is in §10.1.
 - Initial enemies are placed on random legal tiles of the Snuff zone (`spawn` stream).
 - `first_vigil` is a scripted map and ignores all enemy and Plume modifiers on its Night.
 
@@ -1047,7 +1054,7 @@ Faces 1–2 are bad, 3–4 neutral, 5–6 good. The sound chimes follow this (§
 ### 13.6 Dawn, Chandlery, Boons and Heirlooms
 **Dawn** (regular Nights)
 1. All Snuff and Plumes vanish.
-2. Vigil: Dread −1 for each lit Vigil Candle.
+2. Vigil: Dread −1 if at least one Vigil Candle is still lit (`dawnPerCandle` −1 per lit Candle, capped at `dawnMax` 1 per Dawn). Dread from a bad Night therefore mostly carries into the next one.
 3. Smoldering heroes relight with 1 HP.
 4. Heroes and kept units heal `heal_between_nights` HP, up to max.
 5. **Carry-over:** keep up to 2 units (`carry_over`). The default is the 2 with the highest current HP, ties going to the most recently summoned. The rest melt. In Vigil, kept units redeploy at the next `night_setup`. In Last Flame, heroes and kept units stay on their tiles.
@@ -1098,7 +1105,7 @@ The parameters are listed in the Engineering summary.
 | | `candlelit` | `dusk` | `midnight` | `witching_hour` |
 |---|---|---|---|---|
 | Chip | 1 candle · Gentle | 2 candles · Normal | 3 candles · Hard | 4 candles · Brutal |
-| `starting_dread` / `dread_max` | 0 / 14 | 0 / 12 | 2 / 12 | 3 / 12 |
+| `starting_dread` / `dread_max` | 0 / 14 | 0 / 12 | 1 / 12 | 2 / 12 |
 | `initial_enemies_mod` | −1 | 0 | 0 | +1 |
 | `plumes_mod` | −1 | 0 | 0 | 0 |
 | `enemy_hp_mod` | `none` | `none` | `non_minions` | `all` |
@@ -1674,7 +1681,7 @@ Every shape is defined relative to an anchor and a rotation (N, E, S, W):
 
 **Hero example**
 ```json
-{ "id": "moth_witch", "name": "Velveteen", "title": "the Moth Witch", "hp": 6, "atk": 2,
+{ "id": "moth_witch", "name": "Velveteen", "title": "the Moth Witch", "hp": 8, "atk": 2,
   "move": { "type": "leap", "offsets": "knight" },
   "attack": { "kind": "melee", "reach": "as_move", "area": "single", "damage": "atk", "take": false },
   "trait": "mothmaker", "power": "flutterswap", "powerCost": 2,
@@ -1700,9 +1707,10 @@ Every shape is defined relative to an anchor and a rotation (N, E, S, W):
 **Boss example**
 ```json
 { "id": "guttered_king", "name": "The Guttered King", "epithet": "Monarch of Melted Wax",
-  "size": [2, 2], "hp": { "base": 18, "perPlayer": 12 },
+  "size": [2, 2], "hp": { "base": 48, "perPlayer": 12 },
   "immune": ["displacement", "gloam", "hot_wax"],
   "special": { "op": "custom", "id": "smothered_mate", "damagePct": 15, "maxCrowns": 3 },
+  "coopIntent": "sceptre_sweep",
   "phases": [
     { "move": { "type": "step", "dirs": "all", "range": 1 },
       "intents": ["ladle_slam", "sceptre_sweep"] },
@@ -1835,7 +1843,7 @@ hand-off notes). They are clarifications, not changes to the design above.
 | Smoldering Wicks and line of sight (§5.3 vs §5.4) | **Wicks do not block line of sight**; they still block movement. (`SMOLDERING_WICK_BLOCKS_LOS` in `src/engine/state.ts`.) | Follows the overlay table in §5.4. |
 | Kill credit for Snuff hits (Vigil, §6.3) | The victim's last displacer this round, else the attacker's, else whoever reversed the intent. | Last Flame uses a clock instead (below). |
 | Optional picks (Sunshield Charge's hit, §7.3) | An optional pick may be left out **only when it has no valid choice**. | Skipping a pick that has a valid choice is rejected (`INVALID_TARGET`). |
-| Moves against immune pieces | A pick whose effects only move a piece that is immune to that move is not offered (reason `IMMUNE`). Castle ignores immunity. | Covers Feint, Ember Waltz, Flutterswap and Velvet Pull. |
+| Moves against immune pieces | A pick whose effects only move a piece that is immune to that move is not offered (reason `IMMUNE`). Castle ignores immunity. | Covers Feint, Ember Waltz and Flutterswap. Velvet Pull also deals damage, so a pull-immune enemy is a legal target: it takes the 1 damage and stays put. |
 | Charms on a fallen hero (§7.1) | Charms stay on a Smoldering hero (Riposte answers the fatal hit). A Charm returns to the discard pile of the seat that played it. | |
 | Brass Thimble, Swarm of Wings | Brass Thimble raises max HP **and** current HP by 2. Swarm of Wings readies every Velvet Moth you own, even ones that already acted. | |
 | Undo commit points (§6.10) | Any draw, shuffle, Plume placed or RNG stream advanced. Ids keep counting after an undo. | |
