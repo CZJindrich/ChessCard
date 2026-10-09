@@ -161,9 +161,19 @@ function bossMomentFx(before: GameState, color: Rgb): FxCommand[] {
   ];
 }
 
-function gloamFx(e: Extract<GameEvent, { type: 'gloam_closed' }>): FxCommand[] {
+/** The Gloam closing sweeps around the ring: fog rolls in tile by tile, clockwise from the top. */
+function gloamFx(e: Extract<GameEvent, { type: 'gloam_closed' }>, before: GameState, duration: number): FxCommand[] {
+  const cx = before.board.w / 2;
+  const cy = before.board.h / 2;
   const step = Math.max(1, Math.ceil(e.tiles.length / MAX_GLOAM_PUFFS));
-  return e.tiles.filter((_, i) => i % step === 0).map((t, i) => ({ kind: 'burst', burst: 'plume_small', at: tileCentre(t), delay: i * 12, color: COLORS.gloam }));
+  const sweep = Math.max(300, duration * 0.8);
+  return e.tiles
+    .filter((_, i) => i % step === 0)
+    .map((t) => {
+      const angle = Math.atan2(t.x + 0.5 - cx, t.y + 0.5 - cy);
+      const turn = (angle + Math.PI) / (2 * Math.PI);
+      return { kind: 'burst', burst: 'plume_small', at: tileCentre(t), delay: turn * sweep, color: COLORS.gloam } as FxCommand;
+    });
 }
 
 /** The FX commands for one playback step. */
@@ -210,7 +220,7 @@ export function fxForStep(step: DirectedStep, before: GameState, reg: ContentReg
     case 'boss_spawned':
       return [{ kind: 'ring', at: centreOf(e.anchor, 2), radius: 4, ttl: 800, color: COLORS.snuffRim }, { kind: 'shake', strength: 3, duration: 300 }];
     case 'gloam_closed':
-      return gloamFx(e);
+      return gloamFx(e, before, step.duration);
     case 'player_eliminated': {
       const hero = before.players[e.seat] ? before.pieces[before.players[e.seat].heroPieceId] : undefined;
       return hero ? [{ kind: 'ring', at: centreOf(hero.pos), radius: 2.5, ttl: 700, color: COLORS.gloam }] : [];

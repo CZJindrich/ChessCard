@@ -334,25 +334,6 @@
   height: 1.15rem;
 }
 
-.ww-game-menu {
-  position: absolute;
-  right: 0;
-  top: calc(100% + 0.5rem);
-  z-index: 50;
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  gap: 0.35rem;
-  min-width: 12rem;
-  padding: 0.6rem;
-}
-
-.ww-game-menu__ask {
-  font-size: 0.9rem;
-  color: var(--ww-text-dim);
-  margin-bottom: 0.25rem;
-}
-
 /* ============================================================================ rails */
 
 .ww-rail {
@@ -1409,31 +1390,86 @@
 }
 
 .ww-toll-card {
+  position: relative;
+  min-height: 16rem;
+  padding: 0;
+  border: 0;
+  background: none;
+  perspective: 900px;
+  cursor: pointer;
+  text-align: center;
+}
+
+.ww-toll-card__inner {
+  position: relative;
+  display: grid;
+  height: 100%;
+  min-height: 16rem;
+  transform-style: preserve-3d;
+  transition: transform 150ms var(--ww-ease);
+}
+
+.ww-toll-card--flip .ww-toll-card__inner {
+  animation: ww-toll-flip 620ms cubic-bezier(0.3, 0.6, 0.3, 1.15) var(--ww-flip-delay, 200ms) both;
+}
+
+@keyframes ww-toll-flip {
+  from {
+    transform: rotateY(180deg) translateY(1.2rem);
+  }
+  to {
+    transform: rotateY(0deg);
+  }
+}
+
+.ww-toll-card:hover .ww-toll-card__inner,
+.ww-toll-card:focus-visible .ww-toll-card__inner {
+  transform: translateY(-5px) rotate(-0.6deg);
+}
+
+.ww-toll-card__face,
+.ww-toll-card__back {
+  grid-area: 1 / 1;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 0.35rem;
-  min-height: 15rem;
   padding: 1rem 1rem 1.1rem;
   border-radius: 0.8rem;
   border: 2px solid var(--ww-brass);
-  background: linear-gradient(180deg, var(--ww-vellum-top), var(--ww-vellum-bottom));
-  color: #2b1a10;
-  text-align: center;
+  backface-visibility: hidden;
   box-shadow: 0 0.8rem 1.6rem rgba(0, 0, 0, 0.55);
-  transition:
-    transform 150ms var(--ww-ease),
-    box-shadow 150ms ease;
 }
 
-.ww-toll-card:hover {
-  transform: translateY(-4px) rotate(-0.5deg);
+.ww-toll-card__face {
+  background: linear-gradient(180deg, var(--ww-vellum-top), var(--ww-vellum-bottom));
+  color: #2b1a10;
+}
+
+.ww-toll-card:hover .ww-toll-card__face,
+.ww-toll-card:focus-visible .ww-toll-card__face {
   box-shadow:
     0 1rem 2rem rgba(0, 0, 0, 0.6),
     0 0 0 3px var(--ww-candle-gold);
 }
 
-.ww-toll-card--curse {
+.ww-toll-card__back {
+  transform: rotateY(180deg);
+  justify-content: center;
+  background:
+    repeating-linear-gradient(45deg, rgba(0, 0, 0, 0.12) 0 6px, transparent 6px 12px),
+    radial-gradient(circle at 50% 45%, #7a2a30, var(--ww-matchbook-red) 70%);
+}
+
+.ww-toll-card__back-bell {
+  width: 4.2rem;
+  height: 4.2rem;
+  border-radius: 50% 50% 18% 18%;
+  border: 3px solid var(--ww-candle-gold);
+  box-shadow: 0 0 1.2rem rgba(244, 185, 66, 0.4);
+}
+
+.ww-toll-card--curse .ww-toll-card__face {
   border-color: #6a4c9c;
   background: linear-gradient(180deg, #3a2f52, #241c33);
   color: var(--ww-tallow-text);
@@ -1481,6 +1517,10 @@
 
 .ww-toll-card__reward {
   margin-top: auto;
+  padding: 0.25rem 0.6rem;
+  border-radius: 0.4rem;
+  background: rgba(255, 216, 107, 0.1);
+  border: 1px solid rgba(255, 216, 107, 0.4);
   font-family: var(--ww-font-label);
   font-size: 0.7rem;
   letter-spacing: 0.06em;
@@ -1535,126 +1575,6 @@
 
 /* chandlery (functional; the finished scene replaces it) */
 
-.ww-draft {
-  display: flex;
-  justify-content: center;
-  gap: 0.8rem;
-}
-
-.ww-draft__card {
-  position: relative;
-  padding: 0;
-  border: 0;
-  background: none;
-  border-radius: 0.8rem;
-  transition: transform 150ms var(--ww-ease);
-}
-
-.ww-draft__card:hover:not(:disabled) {
-  transform: translateY(-6px);
-}
-
-.ww-draft__card--taken {
-  opacity: 0.45;
-}
-
-.ww-draft__taken {
-  position: absolute;
-  left: 50%;
-  top: 45%;
-  translate: -50% -50%;
-  padding: 0.2rem 0.8rem;
-  border-radius: 0.3rem;
-  background: var(--ww-seal-red);
-  color: var(--ww-flame-core);
-  font-family: var(--ww-font-label);
-  font-weight: 700;
-  rotate: -12deg;
-}
-
-.ww-boons {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 0.6rem;
-}
-
-.ww-boon {
-  display: flex;
-  flex-direction: column;
-  gap: 0.2rem;
-  padding: 0.6rem;
-  border-radius: 0.6rem;
-  border: 1px solid var(--ww-line-soft);
-  background: rgba(13, 11, 18, 0.55);
-  text-align: left;
-}
-
-.ww-boon--on {
-  border-color: var(--ww-candle-gold);
-  box-shadow: 0 0 0.8rem rgba(244, 185, 66, 0.3);
-}
-
-.ww-boon__name {
-  font-family: var(--ww-font-label);
-  font-weight: 700;
-  color: var(--ww-candle-gold);
-}
-
-.ww-boon__text {
-  font-size: 0.85rem;
-  color: var(--ww-text-dim);
-}
-
-.ww-boon-options {
-  display: flex;
-  flex-direction: column;
-  gap: 0.3rem;
-}
-
-.ww-boon-options--cards {
-  flex-direction: row;
-  flex-wrap: wrap;
-}
-
-.ww-boon-option {
-  padding: 0.3rem 0.6rem;
-  border-radius: 0.4rem;
-  border: 1px solid var(--ww-line-soft);
-  background: rgba(13, 11, 18, 0.55);
-  text-align: left;
-  font-size: 0.86rem;
-}
-
-.ww-boon-option--on {
-  border-color: var(--ww-candle-gold);
-  color: var(--ww-flame-core);
-}
-
-/* game over */
-
-.ww-game-over {
-  grid-area: 1 / 1 / -1 / -1;
-  position: relative;
-  z-index: 40;
-  display: grid;
-}
-
-.ww-game-over__scene {
-  position: absolute;
-  inset: 0;
-}
-
-.ww-game-over .ww-dialog-layer {
-  grid-area: 1 / 1;
-}
-
-.ww-result {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.6rem;
-}
-
 .ww-result-stars {
   display: flex;
   gap: 0.4rem;
@@ -1671,66 +1591,10 @@
   text-shadow: 0 0 1rem rgba(255, 216, 107, 0.6);
 }
 
-.ww-result__cause {
-  font-family: var(--ww-font-flavor);
-  font-style: italic;
-  color: var(--ww-text-dim);
-}
-
-.ww-result__stats {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 0.6rem;
-  margin: 0;
-  width: 100%;
-}
-
-.ww-result__stats div {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 0.4rem;
-  border-radius: 0.5rem;
-  background: rgba(13, 11, 18, 0.55);
-}
-
-.ww-result__stats dt {
-  font-family: var(--ww-font-label);
-  font-size: 0.62rem;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--ww-text-dim);
-}
-
-.ww-result__stats dd {
-  margin: 0;
-  font-size: 1.2rem;
-  color: var(--ww-tallow-text);
-}
-
 .ww-result__seed {
   text-align: center;
   font-size: 0.8rem;
   color: var(--ww-text-faint);
-}
-
-.ww-standings {
-  display: flex;
-  flex-direction: column;
-  gap: 0.3rem;
-}
-
-.ww-standings li {
-  display: grid;
-  grid-template-columns: 2rem 1fr auto;
-  gap: 0.6rem;
-  padding: 0.3rem 0.6rem;
-  border-radius: 0.4rem;
-  background: rgba(13, 11, 18, 0.55);
-}
-
-.ww-standings__winner {
-  color: var(--ww-sunrise-gold);
 }
 
 /* ============================================================================ narrow screens */

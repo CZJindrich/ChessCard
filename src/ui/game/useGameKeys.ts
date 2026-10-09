@@ -1,11 +1,14 @@
 /**
- * Keyboard controls (GDD §15.7): Space end turn, Enter confirm, Z undo, 1–8 select a card,
- * Tab cycle Ready pieces, Esc cancel, P Hero Power, C claim turn, H hint, I intent overlay.
+ * Keyboard controls (GDD §15.7): Space end turn, Enter confirm, Z undo, 1–8 select a card, Tab
+ * cycle Ready pieces, Esc cancel (with nothing to cancel: the pause menu), P Hero Power, C claim
+ * turn, D deck viewer, H hint, I intent overlay, R rules, G ping the hovered tile, + / − zoom.
+ * While an overlay is open only Esc (close), D and R work.
  */
 import { useEffect, type RefObject } from 'react';
-import type { GameController } from '../../game';
-import { useServices } from '../app/services';
+import type { ControllerSnapshot, GameController } from '../../game';
+import { useServices, type AppServices } from '../app/services';
 import { useController } from './context';
+import { useGameUi, ZOOM_STEP, type GameUi } from './uiStore';
 
 function isTextField(target: EventTarget | null): boolean {
   return target instanceof HTMLElement && (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName));
@@ -17,20 +20,55 @@ function boardHasFocus(root: HTMLElement | null): boolean {
   return active === null || active === document.body || active === root || (active instanceof HTMLElement && active.closest('.ww-board-stage') !== null);
 }
 
-function handleKey(event: KeyboardEvent, controller: GameController, root: HTMLElement | null): boolean {
+/** Nothing for Esc to back out of: no piece, card, Power, inspection, preview or confirmation. */
+export function nothingSelected(snap: ControllerSnapshot): boolean {
+  const sel = snap.selection;
+  return !snap.confirmingEndTurn && sel.pieceId === null && sel.card === null && sel.power === null && sel.inspectId === null && sel.hint === null && !sel.previewEndTurn;
+}
+
+function overlayKeys(key: string, ui: GameUi): boolean {
+  switch (key) {
+    case 'Escape':
+      ui.close();
+      return true;
+    case 'd':
+    case 'D':
+      ui.toggle('deck');
+      return true;
+    case 'r':
+    case 'R':
+      ui.toggle('rules');
+      return true;
+    default:
+      return false;
+  }
+}
+
+function confirmKeys(key: string, controller: GameController): boolean {
+  if (key === 'Enter' || key === ' ') {
+    controller.endTurn(true);
+    return true;
+  }
+  if (key === 'Escape') {
+    controller.cancel();
+    return true;
+  }
+  return false;
+}
+
+function ping(controller: GameController, ui: GameUi, services: AppServices): void {
+  const snap = controller.getSnapshot();
+  const tile = snap.selection.hover;
+  if (!tile) return;
+  ui.ping(tile, snap.uiSeat);
+  services.audio.play('uiConfirm', { pitch: 1.5, volume: 0.6 });
+}
+
+function handleKey(event: KeyboardEvent, controller: GameController, ui: GameUi, services: AppServices, root: HTMLElement | null): boolean {
   const snap = controller.getSnapshot();
   const key = event.key;
-  if (snap.confirmingEndTurn) {
-    if (key === 'Enter' || key === ' ') {
-      controller.endTurn(true);
-      return true;
-    }
-    if (key === 'Escape') {
-      controller.cancel();
-      return true;
-    }
-    return false;
-  }
+  if (ui.store.get().overlay !== null) return overlayKeys(key, ui);
+  if (snap.confirmingEndTurn) return confirmKeys(key, controller);
   switch (key) {
     case ' ':
       controller.endTurn();
@@ -38,7 +76,8 @@ function handleKey(event: KeyboardEvent, controller: GameController, root: HTMLE
     case 'Enter':
       return controller.tryPlaySelected();
     case 'Escape':
-      controller.cancel();
+      if (nothingSelected(snap)) ui.open('pause');
+      else controller.cancel();
       return true;
     case 'z':
     case 'Z':
@@ -60,6 +99,26 @@ function handleKey(event: KeyboardEvent, controller: GameController, root: HTMLE
     case 'I':
       controller.toggleIntents();
       return true;
+    case 'd':
+    case 'D':
+      ui.open('deck');
+      return true;
+    case 'r':
+    case 'R':
+      ui.open('rules');
+      return true;
+    case 'g':
+    case 'G':
+      ping(controller, ui, services);
+      return true;
+    case '+':
+    case '=':
+      ui.zoomBy(ZOOM_STEP);
+      return true;
+    case '-':
+    case '_':
+      ui.zoomBy(1 / ZOOM_STEP);
+      return true;
     case 'Tab':
       if (!boardHasFocus(root)) return false;
       controller.cycleReadyPiece(event.shiftKey ? -1 : 1);
@@ -78,13 +137,14 @@ function handleKey(event: KeyboardEvent, controller: GameController, root: HTMLE
 export function useGameKeys(rootRef: RefObject<HTMLElement | null>): void {
   const controller = useController();
   const services = useServices();
+  const ui = useGameUi();
   useEffect(() => {
     const onKey = (event: KeyboardEvent): void => {
       if (event.defaultPrevented || event.ctrlKey || event.metaKey || event.altKey || isTextField(event.target)) return;
       if (services.overlays.get().settingsOpen || document.querySelector('.ww-modal-backdrop')) return;
-      if (handleKey(event, controller, rootRef.current)) event.preventDefault();
+      if (handleKey(event, controller, ui, services, rootRef.current)) event.preventDefault();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [controller, services, rootRef]);
+  }, [controller, services, ui, rootRef]);
 }

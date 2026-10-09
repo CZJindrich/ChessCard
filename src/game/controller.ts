@@ -356,8 +356,9 @@ export class GameController {
   }
 
   private step(): void {
-    if (this.disposed || this.timer !== null || this.holds.size > 0) return;
-    while (this.queue.length > 0) {
+    if (this.disposed || this.timer !== null) return;
+    // A cue listener may hold mid-batch (the boss intro), even during instant playback.
+    while (this.queue.length > 0 && this.holds.size === 0) {
       const item = this.queue.shift();
       if (!item) break;
       if (item.kind === 'end') {
@@ -366,6 +367,7 @@ export class GameController {
       }
       if (this.startEvent(item)) return;
     }
+    if (this.holds.size > 0) return;
     this.playing = null;
     this.updateMusic();
     if (this.started) this.drive();

@@ -33,32 +33,42 @@ function canAnimate(node: HTMLElement | undefined): node is HTMLElement {
   return node !== undefined && typeof node.animate === 'function';
 }
 
-/** Hop from tile to tile along the path, with a wax squash on each landing. */
+/**
+ * Hop from tile to tile along the path with wax squash-and-stretch (§16.9): a crouch before
+ * take-off, stretched in the air, squashed on each landing, settling at the end.
+ */
 function hopFrames(from: Pos, path: Pos[], m: BoardMetrics): Keyframe[] {
   const points = [from, ...path].map((p) => tileXY(p, m));
   const frames: Keyframe[] = [];
   const legs = points.length - 1;
-  const lift = m.tile * 0.16;
+  const lift = m.tile * 0.2;
+  const at = (i: number): number => (legs === 0 ? 0 : i / legs);
   points.forEach((pt, i) => {
-    const offset = legs === 0 ? 0 : i / legs;
-    if (i > 0) {
-      const prev = points[i - 1];
-      frames.push({ transform: translate({ x: (prev.x + pt.x) / 2, y: (prev.y + pt.y) / 2 }, lift, 0.94, 1.08), offset: (i - 0.5) / legs });
+    if (i === 0) {
+      frames.push({ transform: translate(pt), offset: 0 });
+      frames.push({ transform: translate(pt, 0, 1.08, 0.9), offset: at(0.18) });
+      return;
     }
-    frames.push({ transform: translate(pt, 0, i === 0 ? 1 : 1.06, i === 0 ? 1 : 0.92), offset });
+    const prev = points[i - 1];
+    frames.push({ transform: translate({ x: (prev.x + pt.x) / 2, y: (prev.y + pt.y) / 2 }, lift, 0.9, 1.14), offset: at(i - 0.5) });
+    frames.push({ transform: translate(pt, 0, 1.12, 0.86), offset: at(i - 0.08) });
   });
-  frames[frames.length - 1] = { transform: translate(points[points.length - 1]), offset: 1 };
-  return frames;
+  const end = points[points.length - 1];
+  frames.push({ transform: translate(end, 0, 0.97, 1.03), offset: at(legs - 0.02) });
+  frames.push({ transform: translate(end), offset: 1 });
+  return frames.filter((f, i, all) => i === 0 || (f.offset as number) > (all[i - 1].offset as number));
 }
 
+/** Leaps and flights: an arc 0.6 tiles high, landing with a squash (the dust puff is a particle). */
 function arcFrames(from: Pos, to: Pos, m: BoardMetrics): Keyframe[] {
   const a = tileXY(from, m);
   const b = tileXY(to, m);
   const mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
   return [
     { transform: translate(a), offset: 0 },
-    { transform: translate(mid, m.tile * 0.6, 0.96, 1.04), offset: 0.5 },
-    { transform: translate(b, 0, 1.08, 0.9), offset: 0.88 },
+    { transform: translate(a, 0, 1.08, 0.9), offset: 0.1 },
+    { transform: translate(mid, m.tile * 0.6, 0.94, 1.08), offset: 0.5 },
+    { transform: translate(b, 0, 1.12, 0.86), offset: 0.86 },
     { transform: translate(b), offset: 1 },
   ];
 }
@@ -139,9 +149,28 @@ function strikeTarget(e: Extract<GameEvent, { type: 'strike' }>): Pos | null {
   return e.target ?? e.tiles?.[0] ?? null;
 }
 
-function animateStep(step: PlaybackStep, nodes: Nodes, m: BoardMetrics, shownPos: (id: string) => Pos | null, reducedMotion: boolean): void {
+/** A boss swells when it changes phase or is checkmated. */
+function bossPulse(node: HTMLElement, duration: number): void {
+  const base = node.style.transform;
+  node.animate(
+    [
+      { transform: base },
+      { transform: `${base} translateY(-4%) scale(1.08)`, offset: 0.25 },
+      { transform: `${base} scale(0.97)`, offset: 0.6 },
+      { transform: base },
+    ],
+    { duration: Math.min(900, duration), easing: 'ease-out' },
+  );
+}
+
+function animateStep(step: PlaybackStep, nodes: Nodes, m: BoardMetrics, shownPos: (id: string) => Pos | null, reducedMotion: boolean, bossId: string | null): void {
   if (step.duration <= 0) return;
   const e = step.event;
+  if ((e.type === 'boss_phase' || e.type === 'checkmate') && bossId && !reducedMotion) {
+    const node = nodes.get(bossId);
+    if (canAnimate(node)) bossPulse(node, step.duration);
+    return;
+  }
   const options: KeyframeAnimationOptions = { duration: step.duration, easing: 'cubic-bezier(0.3, 0.7, 0.3, 1)' };
   if (e.type === 'piece_moved') {
     const node = nodes.get(e.pieceId);
@@ -171,12 +200,22 @@ function bossStyle(boss: Piece, m: BoardMetrics, rows: number): CSSProperties {
   return { transform: `translate(${topLeft.x + place.offsetX}px, ${topLeft.y + place.offsetY}px)`, width: place.size, height: place.size, zIndex: (rows - boss.pos.y) * 10 + 5 };
 }
 
-/** The cursor is over the boss art but not its footprint (§16.8: the art turns see-through). */
-function overBossArt(boss: Piece, hover: Pos | null): boolean {
-  if (!hover) return false;
-  const inFootprint = hover.x >= boss.pos.x && hover.x < boss.pos.x + boss.size && hover.y >= boss.pos.y && hover.y < boss.pos.y + boss.size;
-  const inArt = hover.x >= boss.pos.x - 1 && hover.x <= boss.pos.x + boss.size && hover.y >= boss.pos.y && hover.y <= boss.pos.y + boss.size;
+/** A tile the boss art overlaps outside its footprint (the art is 3×3 tiles over 2×2). */
+function underBossArt(boss: Piece, tile: Pos): boolean {
+  const inFootprint = tile.x >= boss.pos.x && tile.x < boss.pos.x + boss.size && tile.y >= boss.pos.y && tile.y < boss.pos.y + boss.size;
+  const inArt = tile.x >= boss.pos.x - 1 && tile.x <= boss.pos.x + boss.size && tile.y >= boss.pos.y && tile.y <= boss.pos.y + boss.size;
   return inArt && !inFootprint;
+}
+
+/** Tiles the player is being shown right now: move dots, strike rings, card targets, deploy tiles. */
+function highlightedTiles(model: BoardModel): Pos[] {
+  return [...(model.piece?.moves.map((m) => m.pos) ?? []), ...(model.piece?.strikes.map((m) => m.pos) ?? []), ...(model.targeting?.info.targets.map((t) => t.pos) ?? []), ...model.deploy];
+}
+
+/** §16.8: the boss art turns 50% see-through when the cursor or a highlight is underneath it. */
+function bossSeeThrough(boss: Piece, hover: Pos | null, model: BoardModel): boolean {
+  if (hover && underBossArt(boss, hover)) return true;
+  return highlightedTiles(model).some((t) => underBossArt(boss, t));
 }
 
 export function PiecesLayer({ snap, model, metrics }: LayerProps): ReactElement {
@@ -202,6 +241,7 @@ export function PiecesLayer({ snap, model, metrics }: LayerProps): ReactElement 
           metricsRef.current,
           (id) => stateRef.current.pieces[id]?.pos ?? null,
           reducedRef.current,
+          stateRef.current.boss?.pieceId ?? null,
         ),
       ),
     [controller],
@@ -235,8 +275,8 @@ export function PiecesLayer({ snap, model, metrics }: LayerProps): ReactElement 
         if (piece.kind === 'boss') {
           const bossState = state.boss;
           return (
-            <div key={piece.id} ref={ref} className={`ww-boss-slot${overBossArt(piece, hover) ? ' ww-boss-slot--see-through' : ''}`} style={bossStyle(piece, metrics, state.board.h)} data-piece-id={piece.id}>
-              <BossArt bossId={piece.defId} phase={bossState?.phase ?? 1} crowns={bossState?.crowns ?? 0} size={metrics.tile * 3} animated={!presentation.reduced_motion} seed={piece.id} />
+            <div key={piece.id} ref={ref} className={`ww-boss-slot${bossSeeThrough(piece, hover, model) ? ' ww-boss-slot--see-through' : ''}`} style={bossStyle(piece, metrics, state.board.h)} data-piece-id={piece.id}>
+              <BossArt bossId={piece.defId} phase={bossState?.phase ?? 1} crowns={bossState?.crowns ?? 0} hungry={bossState?.hungry ?? false} size={metrics.tile * 3} animated={!presentation.reduced_motion} seed={piece.id} />
             </div>
           );
         }

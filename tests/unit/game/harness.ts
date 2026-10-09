@@ -3,8 +3,8 @@
  * fake and quick game configs built through the real presets.
  */
 import { concreteSeed, defaultProfile, quickPlaySelection, resolveConfig } from '../../../src/config';
-import { createGame, getContent } from '../../../src/engine';
-import type { GameConfig, GameState, SeatConfig } from '../../../src/engine/types';
+import { applyAction, createGame, getContent, pendingAutomation } from '../../../src/engine';
+import type { Action, GameConfig, GameState, SeatConfig } from '../../../src/engine/types';
 import type { GameAudio, Scheduler } from '../../../src/game';
 import type { MusicMood, PlayOptions, SfxName } from '../../../src/audio';
 
@@ -94,4 +94,40 @@ export function newGame(config: GameConfig = quickConfig()): GameState {
 /** Let promise callbacks (the sync bot runner) settle. */
 export async function flushMicrotasks(times = 5): Promise<void> {
   for (let i = 0; i < times; i++) await Promise.resolve();
+}
+
+/**
+ * Play a solo game forward with the engine alone (no UI): automated phases advance, the human
+ * readies, ends turns, keeps default units, skips the draft and takes no Boon, picks the
+ * Blessing — until `done` holds. `tweak` may adjust each state (e.g. keep Dread low).
+ */
+export function playUntil(start: GameState, done: (s: GameState) => boolean, tweak: (s: GameState) => void = () => undefined, limit = 2000): GameState {
+  let s = start;
+  for (let i = 0; i < limit && !done(s); i++) {
+    const next = structuredClone(s);
+    tweak(next);
+    const action = nextAction(next);
+    const result = applyAction(next, action);
+    if (!result.ok) throw new Error(`playUntil: ${action.type} refused (${result.reason}) in ${next.phase}`);
+    s = result.state;
+  }
+  if (!done(s)) throw new Error(`playUntil: gave up in ${s.phase}`);
+  return s;
+}
+
+function nextAction(s: GameState): Action {
+  if (pendingAutomation(s)) return { type: 'advance' };
+  const p = s.players[0];
+  switch (s.phase) {
+    case 'night_setup':
+      return { type: 'ready', seat: 0 };
+    case 'toll':
+      return { type: 'choose_toll', seat: 0, tollId: s.toll.offer?.blessing ?? '' };
+    case 'dawn':
+      return { type: 'carry_over', seat: 0, keep: p.carryOver?.defaults ?? [] };
+    case 'chandlery':
+      return p.chandlery && p.chandlery.picksLeft > 0 ? { type: 'skip_pick', seat: 0 } : { type: 'boon_pick', seat: 0, boon: null, args: {} };
+    default:
+      return { type: 'end_turn', seat: 0 };
+  }
 }

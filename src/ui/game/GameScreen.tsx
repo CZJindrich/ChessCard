@@ -6,7 +6,7 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactElement, type ReactNode } from 'react';
 import { CardMini, SkyBackdrop } from '../../art';
-import { createGame } from '../../engine';
+import { createGame, tutorialTurnActive } from '../../engine';
 import type { GameState } from '../../engine/types';
 import { GameController, LocalTransport, type ControllerSettings } from '../../game';
 import type { GameRoute } from '../app/navigation';
@@ -16,6 +16,14 @@ import { cardArtData } from '../model/describe';
 import { Board } from './Board';
 import { BoardLocatorContext, useBoardLocatorRef } from './boardLocator';
 import { Banners } from './Banners';
+import { BossIntro } from './BossIntro';
+import { CoachMarks } from './CoachMarks';
+import { DeckViewer } from './DeckViewer';
+import { NightTitleCard } from './NightTitleCard';
+import { PassScreen } from './PassScreen';
+import { PauseMenu } from './PauseMenu';
+import { RulesOverlay } from './RulesOverlay';
+import { TipsLayer } from './TipsLayer';
 import { CardPrompt } from './CardPrompt';
 import { CarryOverPanel } from './CarryOverPanel';
 import { ClaimPrompt } from './ClaimPrompt';
@@ -29,11 +37,12 @@ import { NoticeLine } from './NoticeLine';
 import { PlayerRail } from './PlayerRail';
 import { TollModal } from './TollModal';
 import { TopBar } from './TopBar';
-import { createGameUi, GameUiContext, type GameUi } from './uiStore';
+import { createGameUi, GameUiContext, useGameUi, useGameUiState, type GameUi } from './uiStore';
 import { useFxDirector } from './useFxDirector';
 import { useGameKeys } from './useGameKeys';
 import { useRecordResult } from './useRecordResult';
 import './game.css';
+import './overlays.css';
 
 declare global {
   interface Window {
@@ -121,6 +130,22 @@ function useFlightCard(): (flight: CardFlightSpec) => ReactNode {
   );
 }
 
+/** The overlay the player opened (pause menu, deck viewer, rules), at most one at a time. */
+function OpenOverlay(): ReactElement | null {
+  const { overlay } = useGameUiState();
+  const ui = useGameUi();
+  switch (overlay) {
+    case 'pause':
+      return <PauseMenu />;
+    case 'deck':
+      return <DeckViewer onClose={() => ui.close()} />;
+    case 'rules':
+      return <RulesOverlay onClose={() => ui.close()} />;
+    case null:
+      return null;
+  }
+}
+
 function GameLayout({ route, bus }: { route: GameRoute; bus: FxBus }): ReactElement {
   const snap = useGameSnapshot();
   const presentation = usePresentation();
@@ -134,6 +159,7 @@ function GameLayout({ route, bus }: { route: GameRoute; bus: FxBus }): ReactElem
   // The sky only follows Dread in coarse steps, so it is not redrawn for every event.
   const dread = s.vigil ? Math.round((s.vigil.dread / Math.max(1, s.vigil.dreadMax)) * 20) / 20 : 0;
   const sky = useMemo(() => <SkyBackdrop dread={dread} reducedMotion={presentation.reduced_motion} className="ww-game__sky" />, [dread, presentation.reduced_motion]);
+  const coaching = snap.latest.tutorial !== null && tutorialTurnActive(snap.latest);
   const className = ['ww-game', s.config.mode === 'last_flame' && 'ww-game--last-flame', snap.selection.card && 'ww-game--targeting', snap.animating && 'ww-game--animating']
     .filter(Boolean)
     .join(' ');
@@ -157,7 +183,13 @@ function GameLayout({ route, bus }: { route: GameRoute; bus: FxBus }): ReactElem
         <CarryOverPanel />
         <ChandleryPanel />
         <EndTurnConfirm />
+        <TipsLayer disabled={route.demo === true || coaching} />
+        <CoachMarks />
+        <BossIntro />
+        <NightTitleCard />
         <GameOverOverlay route={route} />
+        <PassScreen />
+        <OpenOverlay />
         <ScreenFx bus={bus} reducedMotion={presentation.reduced_motion} renderCard={renderCard} />
       </div>
     </BoardLocatorContext.Provider>

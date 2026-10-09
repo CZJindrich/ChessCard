@@ -223,20 +223,22 @@ function radial(r: Random, min: number, max: number): { vx: number; vy: number }
   return { vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed };
 }
 
-/** Melee strike: a 12-spark burst of hot streaks. */
+/** Melee strike: a 12-spark burst of hot streaks around a brief white-hot flash. */
 export function strikeSparks(x: number, y: number, r: Random = Math.random, count = 12): ParticleDraft[] {
-  return Array.from({ length: count }, () => ({
+  const flash: ParticleDraft = { x, y, size: 0.34, grow: 1.2, ttl: 150, color: COLORS.flameCore, alpha: 0.85, shape: 'puff', glow: true };
+  const sparks = Array.from({ length: count }, () => ({
     x,
     y,
-    ...radial(r, 2.4, 5),
+    ...radial(r, 3, 6.2),
     ay: 4,
-    drag: 3.2,
-    size: 0.09 + r() * 0.06,
-    ttl: 260 + r() * 180,
+    drag: 3,
+    size: 0.13 + r() * 0.08,
+    ttl: 300 + r() * 200,
     color: pick([COLORS.flameCore, COLORS.candleGold, COLORS.ember], r),
     shape: 'streak' as const,
     glow: true,
   }));
+  return [flash, ...sparks];
 }
 
 /** A bolt landing: a small cluster of sparks in its own colour. */
@@ -259,11 +261,11 @@ export function silverDust(x: number, y: number, r: Random = Math.random, count 
   return Array.from({ length: count }, () => ({
     x: x + (r() - 0.5) * 0.4,
     y: y + (r() - 0.5) * 0.5,
-    ...radial(r, 0.5, 1.7),
+    ...radial(r, 0.8, 2.3),
     ay: -0.9,
-    drag: 1.6,
-    size: 0.025 + r() * 0.035,
-    ttl: 420 + r() * 380,
+    drag: 1.5,
+    size: 0.04 + r() * 0.045,
+    ttl: 500 + r() * 420,
     color: pick([COLORS.mothSilver, COLORS.snuffRim, COLORS.moonsilver], r),
     glow: true,
   }));

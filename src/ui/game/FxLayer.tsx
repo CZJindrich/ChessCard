@@ -74,7 +74,8 @@ function FxView({ item, m }: { item: FxItem; m: BoardMetrics }): ReactElement | 
     case 'number': {
       const c = centre(item.pos, m);
       return (
-        <span className={`ww-fx-number ww-fx-number--${item.tone}`} style={{ transform: `translate(${c.x}px, ${c.y - m.tile * 0.25}px)`, fontSize: Math.max(14, m.tile * 0.38) }}>
+        // left/top, not transform: the float animation scales the number about its own centre.
+        <span className={`ww-fx-number ww-fx-number--${item.tone}`} style={{ left: c.x, top: c.y - m.tile * 0.25, fontSize: Math.max(14, m.tile * 0.38) }}>
           {item.text}
         </span>
       );

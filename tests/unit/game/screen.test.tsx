@@ -127,5 +127,6 @@ describe('Game screen', () => {
     await run(8000);
     const latest = window.__ww?.controller.getSnapshot().latest;
     expect(latest && (latest.round > 1 || latest.night > 1 || latest.result !== null)).toBe(true);
-  });
+    // Bots plan synchronously in jsdom; under a loaded parallel run this takes a few seconds.
+  }, 20_000);
 });

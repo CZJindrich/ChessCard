@@ -5,7 +5,7 @@
  */
 import type { ReactElement } from 'react';
 import { openEscapes } from '../../engine';
-import type { Dir, GameState, Piece } from '../../engine/types';
+import type { ContentRegistry, Dir, GameState, Piece } from '../../engine/types';
 import type { ControllerSnapshot } from '../../game';
 import { useRegistry } from './context';
 import { TILE, type BoardMetrics } from './geometry';
@@ -25,9 +25,16 @@ const OPEN = '#7FC8FF';
 const BLOCKED = '#8A8398';
 
 /** Whether this boss has the CHECK / CHECKMATE special. */
-function hasSmotheredMate(state: GameState, reg: ReturnType<typeof useRegistry>): boolean {
+function hasSmotheredMate(state: GameState, reg: ContentRegistry): boolean {
   const def = state.boss ? reg.bosses.byId[state.boss.id] : undefined;
   return def?.special?.op === 'custom' && def.special.id === 'smothered_mate';
+}
+
+/** A step that would leave the board is blocked by the edge; no arrow is drawn off the board. */
+function onBoard(boss: Piece, d: Dir, state: GameState): boolean {
+  const x = boss.pos.x + d.x;
+  const y = boss.pos.y + d.y;
+  return x >= 0 && y >= 0 && x + boss.size <= state.board.w && y + boss.size <= state.board.h;
 }
 
 export function escapeDirs(state: GameState, boss: Piece): Dir[] {
@@ -76,7 +83,7 @@ export function BossMarks({ snap, metrics }: { snap: ControllerSnapshot; metrics
       viewBox={`0 0 ${metrics.cols * TILE} ${metrics.rows * TILE}`}
       aria-hidden="true"
     >
-      {DIRS.map((d) => (
+      {DIRS.filter((d) => onBoard(boss, d, state)).map((d) => (
         <Arrow key={`${d.x},${d.y}`} cx={cx + d.x * reach} cy={cy - d.y * reach} dir={d} open={isOpen(d)} />
       ))}
       <g transform={`translate(${cx} ${labelY})`} className={check ? 'ww-escape-label ww-escape-label--check' : 'ww-escape-label'}>

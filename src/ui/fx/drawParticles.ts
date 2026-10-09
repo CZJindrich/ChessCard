@@ -50,7 +50,7 @@ function drawOne(ctx: CanvasRenderingContext2D, p: Particle, space: DrawSpace): 
       const speed = Math.hypot(p.vx, p.vy) || 1;
       const len = Math.min(r * 2.6, r + speed * space.tile * 0.035);
       ctx.strokeStyle = rgba(p.color, a);
-      ctx.lineWidth = Math.max(1, r * 0.45);
+      ctx.lineWidth = Math.max(1.2, r * 0.5);
       ctx.lineCap = 'round';
       ctx.beginPath();
       ctx.moveTo(x, y);
