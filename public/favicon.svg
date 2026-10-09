@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <radialGradient id="glow" cx="0.5" cy="0.42" r="0.55">
+      <stop offset="0" stop-color="#F4B942" stop-opacity="0.55"/>
+      <stop offset="1" stop-color="#F4B942" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="flame" cx="0.5" cy="0.72" r="0.62">
+      <stop offset="0" stop-color="#FFFFFF"/>
+      <stop offset="0.35" stop-color="#FFF3C4"/>
+      <stop offset="0.75" stop-color="#F4B942"/>
+      <stop offset="1" stop-color="#E8742C"/>
+    </radialGradient>
+  </defs>
+  <circle cx="32" cy="32" r="31" fill="#191523" stroke="#B8913A" stroke-width="2"/>
+  <circle cx="32" cy="26" r="22" fill="url(#glow)"/>
+  <rect x="25" y="34" width="14" height="20" rx="3" fill="#EDE3CC"/>
+  <path d="M25 37q4 2 7 0q3 3 7 0" fill="none" stroke="#C9B48A" stroke-width="1.6"/>
+  <path d="M32 34v-4" stroke="#2B1A10" stroke-width="2" stroke-linecap="round"/>
+  <path d="M32 9C35 16 41 20 41 27.5C41 32.5 37 36 32 36S23 32.5 23 27.5C23 20 29 16 32 9Z" fill="url(#flame)"/>
+  <circle cx="29.2" cy="28" r="1.4" fill="#2B1A10"/>
+  <circle cx="34.8" cy="28" r="1.4" fill="#2B1A10"/>
+</svg>

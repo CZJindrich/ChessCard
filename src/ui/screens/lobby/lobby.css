@@ -1,0 +1,111 @@
+/* Online lobby placeholder. */
+
+.ww-lobby {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
+  gap: 1.2rem;
+  align-items: start;
+  width: 100%;
+  max-width: 64rem;
+  margin: 0 auto;
+  padding-top: 1rem;
+}
+@media (max-width: 820px) {
+  .ww-lobby {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.ww-lobby__panel > *:not(.ww-panel__drips) {
+  position: relative;
+  z-index: 1;
+}
+
+.ww-lobby__summary {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  margin-bottom: 0.8rem;
+  font-family: var(--ww-font-label);
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+.ww-lobby__summary li:first-child {
+  color: var(--ww-candle-gold);
+}
+.ww-lobby__seats {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+.ww-lobby__seat {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.45rem 0.6rem;
+  border: 1px solid var(--ww-line-soft);
+  border-radius: var(--ww-radius);
+  background: rgba(13, 11, 18, 0.45);
+}
+.ww-lobby__seat--empty {
+  border-style: dashed;
+  opacity: 0.65;
+}
+.ww-lobby__seat-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+.ww-lobby__seat-name {
+  font-family: var(--ww-font-label);
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+.ww-lobby__seat-sub {
+  font-size: 0.86rem;
+  color: var(--ww-text-dim);
+}
+.ww-lobby__ready {
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  background: rgba(13, 11, 18, 0.6);
+}
+.ww-lobby__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+.ww-lobby__empty {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.9rem;
+}
+
+.ww-lobby__join {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.7rem;
+}
+.ww-lobby__join .ww-field {
+  width: 100%;
+}
+.ww-lobby__code {
+  max-width: 12rem;
+  min-height: 3.4rem;
+  font-size: 1.8rem;
+  text-align: center;
+}
+.ww-lobby__help {
+  font-size: 0.88rem;
+}
+.ww-lobby__note {
+  margin-top: 1rem;
+}

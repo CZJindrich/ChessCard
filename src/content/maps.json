@@ -1,0 +1,137 @@
+[
+  {
+    "id": "first_vigil",
+    "name": "First Vigil",
+    "kind": "tutorial",
+    "layouts": [
+      {
+        "size": "8x8",
+        "w": 8,
+        "h": 8,
+        "pillars": ["b7", "g7"],
+        "shrines": ["c5"],
+        "candles": ["c3", "f3", "g5"],
+        "heroStarts": ["d1", "e1", "c1", "f1"],
+        "plumes": [
+          { "at": "c6", "enemy": "sootling", "tally": 0 },
+          { "at": "f6", "enemy": "sootling", "tally": 1 },
+          { "at": "b6", "enemy": "ink_wretch", "tally": 2 }
+        ]
+      }
+    ],
+    "tutorial": {
+      "sconce_paladin": {
+        "heroStart": "d2",
+        "sootlings": [
+          { "at": "c4", "aim": "c3" },
+          { "at": "f5", "aim": "g5" }
+        ],
+        "hand": ["light_a_taper", "spark", "shield_bash", "waxen_ward", "call_the_squire"],
+        "flame": 3,
+        "line": ["Move d2 to d3.", "Strike c4; Take to c4.", "Spark f5 (distance 3).", "Summon a Squire."]
+      },
+      "moth_witch": {
+        "heroStart": "e2",
+        "sootlings": [
+          { "at": "d4", "aim": "c3" },
+          { "at": "g4", "aim": "g5" }
+        ],
+        "hand": ["light_a_taper", "spark", "loose_a_moth", "velvet_pull", "moth_dust"],
+        "flame": 3,
+        "line": ["Leap-strike d4 from e2 (a Velvet Moth appears on d4).", "Spark g4 (distance 2).", "Loose a Moth."]
+      },
+      "lampwright": {
+        "heroStart": "d2",
+        "sootlings": [
+          { "at": "d4", "aim": "c3" },
+          { "at": "b4", "aim": "c3" }
+        ],
+        "hand": ["hang_a_lantern", "tinder_bolt", "spark", "prime_the_mortar", "mend_the_wick"],
+        "flame": 3,
+        "line": ["Strike d4 up the d-file.", "Slide d2 to b2.", "Tinder Bolt b4 up the b-file.", "Hang a Lantern."]
+      },
+      "ember_duelist": {
+        "heroStart": "d2",
+        "sootlings": [
+          { "at": "f4", "aim": "f3" },
+          { "at": "g3", "aim": "f3" }
+        ],
+        "hand": ["strike_a_cinder", "feint", "searing_edge", "spark", "light_a_taper"],
+        "flame": 3,
+        "line": ["Strike f4 through e3; Take to f4.", "Flourish: strike g3; Take to g3.", "Strike a Cinder."]
+      }
+    },
+    "text": "The scripted first Night: Sootlings, one Ink Wretch and a Shrine.",
+    "flavor": "Every Lanternwarden remembers the first night they kept the Vigil."
+  },
+  {
+    "id": "hollow_nave",
+    "name": "The Hollow Nave",
+    "kind": "boss_arena",
+    "layouts": [
+      {
+        "size": "8x8",
+        "w": 8,
+        "h": 8,
+        "bossAnchor": "d6",
+        "pillars": ["b6", "g6"],
+        "shrines": ["a3", "h3"],
+        "candles": ["b4", "e3", "g4"],
+        "heroStarts": ["d1", "e1", "c1", "f1"]
+      },
+      {
+        "size": "10x10",
+        "w": 10,
+        "h": 10,
+        "bossAnchor": "e7",
+        "pillars": ["c7", "h7"],
+        "shrines": ["a3", "j3"],
+        "candles": ["c4", "f3", "h4"],
+        "heroStarts": ["e1", "f1", "d1", "g1"]
+      }
+    ],
+    "text": "The fixed Boss Night arena.",
+    "flavor": "The nave is hollow now. Something enormous waits where the altar stood."
+  },
+  {
+    "id": "last_flame_ring",
+    "name": "The Last Flame Ring",
+    "kind": "ring",
+    "layouts": [
+      {
+        "size": "12x12",
+        "w": 12,
+        "h": 12,
+        "heroStarts": ["c3", "j3", "j10", "c10"],
+        "heroStarts2": ["c3", "j10"],
+        "pillars": ["b7", "f2", "k6", "g11", "d6", "g4", "i7", "f9"],
+        "shrines": ["e3", "j5", "h10", "c8"],
+        "chimneys": [
+          ["d4", "i9"],
+          ["d9", "i4"]
+        ],
+        "rubble": ["b10", "c2", "k3", "j11"],
+        "bossAnchor": "f6",
+        "finalZone": ["e5", "h8"]
+      },
+      {
+        "size": "10x10",
+        "w": 10,
+        "h": 10,
+        "heroStarts": ["c3", "h3", "h8", "c8"],
+        "heroStarts2": ["c3", "h8"],
+        "pillars": ["c5", "f3", "h6", "e8"],
+        "shrines": ["d2", "i4", "g9", "b7"],
+        "chimneys": [
+          ["b2", "i9"],
+          ["b9", "i2"]
+        ],
+        "rubble": ["d9", "b4", "g2", "i7"],
+        "bossAnchor": "e5",
+        "finalZone": ["d4", "g7"]
+      }
+    ],
+    "text": "The fixed Last Flame arena, with 4-fold rotational symmetry.",
+    "flavor": "A ring of old stone where the Houses settle their feuds by candlelight."
+  }
+]

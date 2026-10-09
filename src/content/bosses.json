@@ -1,0 +1,117 @@
+[
+  {
+    "id": "hush_hierophant",
+    "name": "Hush Hierophant",
+    "epithet": "The Bell That Swallows Song",
+    "size": [2, 2],
+    "hp": { "base": 14, "perPlayer": 10 },
+    "immune": ["displacement", "gloam", "snuff_attacks"],
+    "flying": false,
+    "special": null,
+    "weakness": { "op": "custom", "id": "hollow_bell", "bonus": 1 },
+    "specialText": "Silencing Peal limits each player to 1 card next turn.",
+    "weaknessText": "Hollow bell: Strikes from pieces adjacent to it deal +1 damage.",
+    "phases": [
+      {
+        "move": { "type": "step", "dirs": "orth", "range": 1 },
+        "intents": ["bell_drop", "hushwave"]
+      },
+      {
+        "enterAt": [2, 3],
+        "move": { "type": "step", "dirs": "all", "range": 1 },
+        "intents": ["bell_drop", "hushwave", "silencing_peal"],
+        "banner": "The clapper starts to swing."
+      },
+      {
+        "enterAt": [1, 3],
+        "move": { "type": "step", "dirs": "all", "range": 1 },
+        "intents": ["bell_drop", "bell_drop", "hushwave", "silencing_peal"],
+        "onEnter": [{ "op": "summon", "unit": "clapper", "count": 1, "near": { "anchor": "self" }, "owner": "snuff" }],
+        "banner": "The clapper tears loose!"
+      }
+    ],
+    "hpBar": "bell_rope",
+    "look": "A riveted iron bell with a smoke robe and a coal-red clapper.",
+    "flavor": "When the great bell tolls in silence, even prayers go out."
+  },
+  {
+    "id": "guttered_king",
+    "name": "The Guttered King",
+    "epithet": "Monarch of Melted Wax",
+    "size": [2, 2],
+    "hp": { "base": 18, "perPlayer": 12 },
+    "immune": ["displacement", "gloam", "hot_wax", "snuff_attacks"],
+    "flying": false,
+    "special": { "op": "custom", "id": "smothered_mate", "damagePct": 15, "maxCrowns": 3 },
+    "weakness": null,
+    "specialText": "Immune to Hot Wax, and spits more of it.",
+    "weaknessText": "Box him in: block all 8 escape steps for CHECKMATE.",
+    "phases": [
+      {
+        "move": { "type": "step", "dirs": "all", "range": 1 },
+        "intents": ["ladle_slam", "sceptre_sweep"]
+      },
+      {
+        "enterAt": [2, 3],
+        "move": { "type": "step", "dirs": "all", "range": 1 },
+        "intents": ["ladle_slam", "sceptre_sweep", "wax_spit"],
+        "onEnter": [
+          {
+            "op": "summon",
+            "unit": "gutter_pawn",
+            "count": { "byPlayers": [1, 1, 2, 2] },
+            "near": { "anchor": "self" },
+            "owner": "snuff",
+            "modeOverrides": { "last_flame": { "unit": "drip_hulk" } }
+          }
+        ],
+        "banner": "The King's court crawls from the wax."
+      },
+      {
+        "enterAt": [1, 3],
+        "move": { "type": "step", "dirs": "all", "range": 1 },
+        "intents": ["ladle_slam", "sceptre_sweep", "sceptre_sweep", "wax_spit"],
+        "onEnter": [{ "op": "create_tile", "tile": "hot_wax", "area": "ring12", "at": "self", "onlyEmpty": true }],
+        "banner": "The King melts, and the floor runs hot."
+      }
+    ],
+    "hpBar": "crown_band",
+    "look": "A mountain of melted candles crowned with 7 moonfire wicks.",
+    "flavor": "He was the first candle of Sconcewick. Now he is every one that failed."
+  },
+  {
+    "id": "nocturna",
+    "name": "Nocturna",
+    "epithet": "Daughter of the Moth-Moon",
+    "size": [2, 2],
+    "hp": { "base": 16, "perPlayer": 11 },
+    "immune": ["displacement", "gloam", "hot_wax", "snuff_attacks"],
+    "flying": true,
+    "special": null,
+    "weakness": null,
+    "specialText": "Flies over everything. Hunger eats the brightest light and heals her.",
+    "weaknessText": "Light lures her: Hunger always bites the brightest light. Bait her with a Lantern or a Lit Shrine.",
+    "phases": [
+      {
+        "move": { "type": "slide", "dirs": "all", "range": 2, "flying": true },
+        "intents": ["wing_gust", "hunger"]
+      },
+      {
+        "enterAt": [2, 3],
+        "move": { "type": "slide", "dirs": "all", "range": 2, "flying": true },
+        "intents": ["wing_gust", "hunger", "hunger"],
+        "banner": "Her hunger doubles."
+      },
+      {
+        "enterAt": [1, 3],
+        "move": { "type": "slide", "dirs": "all", "range": 2, "flying": true },
+        "intents": ["wing_gust", "hunger", "dust_storm"],
+        "onEnter": [{ "op": "summon", "unit": "gnawmoth", "count": 2, "near": { "anchor": "self" }, "owner": "snuff" }],
+        "banner": "Her children wake in the dark."
+      }
+    ],
+    "hpBar": "wing_vein",
+    "look": "Stained-glass moth wings and an abdomen glowing with eaten light.",
+    "flavor": "She fell from the Moth-Moon, hungry for every light she ever loved."
+  }
+]

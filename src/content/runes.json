@@ -1,0 +1,12 @@
+[
+  { "id": "rune_crown", "name": "King step", "kind": "move", "text": "Step 1 in any of the 8 directions." },
+  { "id": "rune_horse", "name": "Knight leap", "kind": "move", "text": "Jump to one of the 8 (1,2)/(2,1) offsets, ignoring pieces in between." },
+  { "id": "rune_tower", "name": "Rook slide", "kind": "move", "text": "Slide orthogonally up to N tiles (N is shown as pips)." },
+  { "id": "rune_mitre", "name": "Bishop slide", "kind": "move", "text": "Slide diagonally up to N tiles." },
+  { "id": "rune_star", "name": "Queen slide", "kind": "move", "text": "Slide in any of the 8 directions up to N tiles." },
+  { "id": "rune_pawn", "name": "Pawn", "kind": "move", "text": "Moves 1 orthogonally in any direction, strikes 1 diagonally in any direction." },
+  { "id": "rune_wing", "name": "Flying", "kind": "modifier", "text": "Added to a slide: passes over pieces and obstacles and lands on an enterable empty tile; ignores Rubble and Hot Wax while passing." },
+  { "id": "rune_arc", "name": "Artillery", "kind": "strike", "text": "Hits a tile within a min-max distance, ignoring line of sight." },
+  { "id": "rune_bolt", "name": "Ranged line", "kind": "strike", "text": "Shoots along a line and hits the first piece." },
+  { "id": "rune_anchor", "name": "Immobile", "kind": "move", "text": "Cannot move." }
+]

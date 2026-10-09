@@ -1,0 +1,26 @@
+[
+  {
+    "id": "short",
+    "name": "Short",
+    "turns_per_night": 4,
+    "vigil": { "nights": 3 },
+    "last_flame": { "nights": 3, "boss_rounds": 5 },
+    "targetTime": "Vigil solo 20 min; Quick Last Flame (you + 2 bots, 10x10) 30 min"
+  },
+  {
+    "id": "standard",
+    "name": "Standard",
+    "turns_per_night": 4,
+    "vigil": { "nights": 4 },
+    "last_flame": { "nights": 4, "boss_rounds": 5 },
+    "targetTime": "Vigil solo 35 min; Last Flame, 4 humans, normal timer, 60 min"
+  },
+  {
+    "id": "long",
+    "name": "Long",
+    "turns_per_night": 4,
+    "vigil": { "nights": 6 },
+    "last_flame": { "nights": 5, "boss_rounds": 6 },
+    "targetTime": "Vigil solo 55 min; Last Flame, 4 humans, normal timer, 80 min"
+  }
+]

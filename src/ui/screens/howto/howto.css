@@ -1,0 +1,375 @@
+/* How to Play: rules grid, pattern gallery, glossary. */
+
+.ww-howto {
+  display: flex;
+  flex-direction: column;
+  gap: 1.6rem;
+  width: 100%;
+  max-width: 78rem;
+  margin: 0 auto;
+  padding-top: 0.8rem;
+}
+.ww-howto__section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+}
+.ww-howto__heading {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  font-family: var(--ww-font-display);
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: var(--ww-candle-gold);
+}
+.ww-howto__heading::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, var(--ww-line-strong), transparent);
+}
+.ww-howto__lede {
+  margin-top: -0.4rem;
+  color: var(--ww-text-dim);
+}
+
+/* Rules */
+.ww-howto__rules {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(15.5rem, 1fr));
+  gap: 1rem;
+}
+.ww-rulecard {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--ww-line);
+  border-radius: var(--ww-radius-lg);
+  background: linear-gradient(180deg, rgba(42, 34, 56, 0.92), rgba(19, 16, 27, 0.95));
+  box-shadow: var(--ww-shadow);
+}
+.ww-rulecard__art {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 8.6rem;
+  padding: 0.65rem;
+  background:
+    radial-gradient(70% 80% at 50% 50%, rgba(244, 185, 66, 0.07), transparent 70%),
+    rgba(13, 11, 18, 0.6);
+  border-bottom: 1px solid var(--ww-line-soft);
+}
+.ww-rulecard__art > .ww-miniboard,
+.ww-rulecard__art > .ww-rule-diagram {
+  height: 100%;
+  min-width: 0;
+}
+.ww-rulecard__text {
+  display: flex;
+  gap: 0.6rem;
+  padding: 0.75rem 0.85rem 0.85rem;
+  font-size: 0.95rem;
+  line-height: 1.35;
+  color: var(--ww-text-dim);
+}
+.ww-rulecard__num {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 1.7rem;
+  height: 1.7rem;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #c04a50, #8e2228 60%, #5a1418);
+  color: #ffe3a1;
+  font-size: 0.85rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+}
+.ww-rulecard__title {
+  font-weight: 500;
+  color: var(--ww-text);
+}
+
+/* Mini boards: the figure gets a definite height, the board fills it at its own aspect. */
+.ww-miniboard {
+  display: block;
+  margin: 0;
+}
+.ww-miniboard > svg {
+  display: block;
+  width: auto;
+  height: 100%;
+  max-width: 100%;
+  margin: 0 auto;
+  border-radius: 4px;
+  box-shadow:
+    0 0 0 1px var(--ww-engraving),
+    0 0 0 3px var(--ww-velvet-dusk),
+    0 4px 12px rgba(0, 0, 0, 0.5);
+}
+
+.ww-rule-diagram {
+  height: 100%;
+}
+.ww-rule-diagram--split {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+}
+.ww-rule-diagram--split > .ww-miniboard {
+  height: 100%;
+  min-width: 0;
+}
+.ww-rule-diagram__aside {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2rem;
+}
+.ww-rule-diagram__caption {
+  font-family: var(--ww-font-label);
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ww-text-dim);
+}
+
+/* Rule 2: the three beats light in turn */
+.ww-beats {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+}
+.ww-beats__row {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.05rem;
+}
+.ww-beats__arrow {
+  font-family: var(--ww-font-label);
+  font-size: 1rem;
+  line-height: 0.9;
+  color: var(--ww-brass);
+  transform: rotate(90deg);
+}
+.ww-beat {
+  position: relative;
+  isolation: isolate;
+  min-width: 7.2rem;
+  text-align: center;
+  padding: 0.25rem 0.6rem;
+  border: 1px solid var(--ww-line);
+  border-radius: 999px;
+  font-family: var(--ww-font-label);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--ww-text);
+  background: rgba(13, 11, 18, 0.6);
+}
+.ww-beat::before {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  z-index: -1;
+  border-radius: inherit;
+  border: 1px solid var(--ww-candle-gold);
+  background: radial-gradient(circle at 50% 30%, rgba(244, 185, 66, 0.55), rgba(244, 185, 66, 0.15));
+  box-shadow: 0 0 0.9rem rgba(244, 185, 66, 0.5);
+  opacity: 0;
+  animation: ww-beat-light 4.5s ease-in-out infinite;
+}
+.ww-beat--2::before {
+  animation-delay: 1.5s;
+}
+.ww-beat--3::before {
+  animation-delay: 3s;
+}
+@keyframes ww-beat-light {
+  0% {
+    opacity: 0;
+  }
+  6%,
+  28% {
+    opacity: 1;
+  }
+  36%,
+  100% {
+    opacity: 0;
+  }
+}
+.ww-beats__after {
+  max-width: 6.5rem;
+  font-family: var(--ww-font-flavor);
+  font-style: italic;
+  font-size: 0.85rem;
+  line-height: 1.2;
+  color: var(--ww-text-dim);
+}
+.ww-reduced-motion .ww-beat--you::before {
+  opacity: 1;
+}
+
+/* Rule 5: a card flies, a Flame goes out */
+.ww-flame-diagram {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1.3rem;
+}
+.ww-flame-diagram__card {
+  animation: ww-card-play 4.5s ease-in-out infinite;
+}
+.ww-flame-diagram__card svg {
+  width: 4.2rem;
+  height: auto;
+}
+@keyframes ww-card-play {
+  0%,
+  18% {
+    transform: none;
+    opacity: 1;
+  }
+  30% {
+    transform: translateY(-0.7rem) rotate(-4deg);
+    opacity: 1;
+  }
+  44% {
+    transform: translate(1.6rem, -1.6rem) scale(0.7) rotate(6deg);
+    opacity: 0;
+  }
+  80% {
+    transform: translateY(0.6rem);
+    opacity: 0;
+  }
+  92%,
+  100% {
+    transform: none;
+    opacity: 1;
+  }
+}
+.ww-flame-diagram__sconce {
+  display: flex;
+  gap: 0.15rem;
+  padding: 0.35rem 0.45rem 0.25rem;
+  border-bottom: 3px solid var(--ww-brass);
+  border-radius: 0 0 0.6rem 0.6rem;
+  background: linear-gradient(180deg, transparent, rgba(184, 145, 58, 0.18));
+}
+.ww-flame-slot {
+  display: grid;
+}
+.ww-flame-slot > * {
+  grid-area: 1 / 1;
+}
+.ww-flame-slot__spent {
+  opacity: 0;
+}
+.ww-flame-slot--0 .ww-flame-slot__lit {
+  animation: ww-flame-spend 4.5s ease-in-out infinite;
+}
+.ww-flame-slot--0 .ww-flame-slot__spent {
+  animation: ww-flame-spent 4.5s ease-in-out infinite;
+}
+@keyframes ww-flame-spend {
+  0%,
+  40% {
+    opacity: 1;
+  }
+  46%,
+  88% {
+    opacity: 0;
+  }
+  94%,
+  100% {
+    opacity: 1;
+  }
+}
+@keyframes ww-flame-spent {
+  0%,
+  40% {
+    opacity: 0;
+  }
+  46%,
+  88% {
+    opacity: 1;
+  }
+  94%,
+  100% {
+    opacity: 0;
+  }
+}
+
+/* Pattern gallery */
+.ww-howto__patterns {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(15.5rem, 1fr));
+  gap: 1rem;
+}
+.ww-pattern {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  padding: 0.8rem;
+  border: 1px solid var(--ww-line);
+  border-radius: var(--ww-radius-lg);
+  background: linear-gradient(180deg, rgba(42, 34, 56, 0.9), rgba(19, 16, 27, 0.94));
+}
+.ww-pattern .ww-miniboard > svg {
+  width: 100%;
+  max-width: 11.5rem;
+  height: auto;
+}
+.ww-pattern__caption {
+  display: flex;
+  gap: 0.6rem;
+  align-items: flex-start;
+}
+.ww-pattern__caption > svg {
+  flex: none;
+  width: 2.1rem;
+  height: 2.1rem;
+}
+.ww-pattern__name {
+  font-family: var(--ww-font-label);
+  font-size: 0.9rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--ww-candle-gold);
+}
+.ww-pattern__text {
+  font-size: 0.92rem;
+  line-height: 1.3;
+  color: var(--ww-text-dim);
+}
+
+/* Glossary */
+.ww-glossary {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(22rem, 1fr));
+  gap: 0.2rem 1.6rem;
+  margin: 0;
+}
+.ww-glossary__row {
+  display: grid;
+  grid-template-columns: 8.5rem minmax(0, 1fr);
+  gap: 0.75rem;
+  padding: 0.35rem 0;
+  border-bottom: 1px solid var(--ww-line-soft);
+}
+.ww-glossary dt {
+  font-family: var(--ww-font-label);
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--ww-text);
+}
+.ww-glossary dd {
+  margin: 0;
+  font-size: 0.95rem;
+  color: var(--ww-text-dim);
+}

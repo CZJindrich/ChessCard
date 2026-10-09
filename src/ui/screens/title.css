@@ -1,0 +1,124 @@
+/* Title screen (§15.1). The scene fills the viewport; the menu column floats over the city. */
+
+.ww-title-screen {
+  height: 100%;
+}
+
+.ww-title {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  justify-items: center;
+  padding: max(1.5rem, 6vh) 1.5rem 0.9rem;
+  overflow: auto;
+  pointer-events: none;
+}
+.ww-title > * {
+  pointer-events: auto;
+}
+
+.ww-title__brand {
+  position: relative;
+  text-align: center;
+}
+.ww-title__brand::before {
+  content: '';
+  position: absolute;
+  inset: -2.5rem -6rem -1.5rem;
+  z-index: -1;
+  background: radial-gradient(closest-side, rgba(13, 11, 18, 0.7), rgba(13, 11, 18, 0));
+  pointer-events: none;
+}
+.ww-title .ww-logo {
+  font-size: 4.6rem;
+}
+.ww-title__tagline {
+  margin-top: 0.55rem;
+  font-family: var(--ww-font-flavor);
+  font-style: italic;
+  font-size: 1.15rem;
+  color: #d8cfe6;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.9);
+}
+
+.ww-title__menu {
+  position: relative;
+  align-self: start;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.8rem;
+  width: min(26rem, 100%);
+  margin-block: clamp(1.5rem, 9vh, 7rem) 1.25rem;
+}
+.ww-title__menu::before {
+  content: '';
+  position: absolute;
+  inset: -3rem -5rem;
+  z-index: -1;
+  background: radial-gradient(closest-side, rgba(13, 11, 18, 0.82), rgba(13, 11, 18, 0.45) 60%, rgba(13, 11, 18, 0));
+  pointer-events: none;
+}
+.ww-title__menu .ww-btn {
+  justify-content: flex-start;
+}
+.ww-title__quick {
+  margin-bottom: 0.7rem;
+}
+.ww-title__hint {
+  margin: -0.5rem 0 0.1rem;
+  text-align: center;
+  font-family: var(--ww-font-flavor);
+  font-style: italic;
+  font-size: 0.95rem;
+  color: var(--ww-candle-gold);
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.9);
+}
+.ww-title__pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.6rem;
+}
+.ww-title__pair .ww-btn {
+  padding-right: 0.8rem;
+}
+.ww-title__minor {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.ww-title__footer {
+  justify-self: stretch;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.ww-title__version {
+  font-family: var(--ww-font-label);
+  font-size: 0.72rem;
+  letter-spacing: 0.14em;
+  color: var(--ww-text-faint);
+}
+
+@media (max-width: 640px) {
+  .ww-title .ww-logo {
+    font-size: 2.8rem;
+  }
+  .ww-title__pair {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-height: 520px) {
+  .ww-title .ww-logo {
+    font-size: 3.2rem;
+  }
+  .ww-title__menu {
+    gap: 0.55rem;
+    margin-block: 0.75rem;
+  }
+}

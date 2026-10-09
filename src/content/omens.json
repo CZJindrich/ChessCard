@@ -1,0 +1,56 @@
+[
+  {
+    "id": "eclipse",
+    "face": 1,
+    "name": "Eclipse",
+    "label": "Snuff hit +1",
+    "tone": "bad",
+    "effects": [{ "op": "modify_rule", "rule": "snuff_damage", "delta": 1, "duration": "round" }],
+    "text": "Every Snuff intent deals +1 damage this round."
+  },
+  {
+    "id": "smoke",
+    "face": 2,
+    "name": "Smoke",
+    "label": "Extra Plume",
+    "tone": "bad",
+    "effects": [{ "op": "place_plume", "enemy": "sootling", "count": 1 }],
+    "text": "A Sootling Plume appears now on a legal tile; it rises this round. With neutrals off, nothing happens."
+  },
+  {
+    "id": "stillness",
+    "face": 3,
+    "name": "Stillness",
+    "label": "Calm",
+    "tone": "neutral",
+    "effects": [],
+    "text": "No effect."
+  },
+  {
+    "id": "long_shadows",
+    "face": 4,
+    "name": "Long Shadows",
+    "label": "Slow Snuff",
+    "tone": "neutral",
+    "effects": [{ "op": "modify_rule", "rule": "snuff_move_range", "delta": -1, "duration": "round" }],
+    "text": "Snuff steps and slides move 1 tile less (minimum 1). Leaps are unchanged."
+  },
+  {
+    "id": "kindling",
+    "face": 5,
+    "name": "Kindling",
+    "label": "+1 Flame",
+    "tone": "good",
+    "effects": [{ "op": "modify_rule", "rule": "flame_per_turn", "delta": 1, "duration": "round" }],
+    "text": "Every seat gets +1 Flame at the start of its seat turn."
+  },
+  {
+    "id": "bright_wings",
+    "face": 6,
+    "name": "Bright Wings",
+    "label": "Draw +1",
+    "tone": "good",
+    "effects": [{ "op": "modify_rule", "rule": "draw_extra", "delta": 1, "duration": "round" }],
+    "text": "Every seat draws 1 extra card at the start of its seat turn."
+  }
+]

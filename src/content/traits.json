@@ -1,0 +1,121 @@
+[
+  {
+    "id": "stalwart",
+    "name": "Stalwart",
+    "owner": "hero",
+    "impl": "data",
+    "text": "Cannot be pushed or pulled. (Expressed as immune: push, pull.)"
+  },
+  {
+    "id": "mothmaker",
+    "name": "Mothmaker",
+    "owner": "hero",
+    "impl": "engine",
+    "text": "A Snuff Minion or Soldier killed by her Strike becomes a Velvet Moth you own on that tile (Exhausted, if the unit limit allows). Never for rivals or bosses. Her strikes never Take."
+  },
+  {
+    "id": "quick_build",
+    "name": "Quick Build",
+    "owner": "hero",
+    "impl": "engine",
+    "text": "His Lanterns and Wick Mortars arrive Ready."
+  },
+  {
+    "id": "flourish",
+    "name": "Flourish",
+    "owner": "hero",
+    "impl": "engine",
+    "text": "When her own Strike kills, she gets 1 extra Strike this seat turn (at most 2 per seat turn)."
+  },
+  {
+    "id": "promotion",
+    "name": "Promotion",
+    "owner": "unit",
+    "impl": "effects",
+    "effects": [
+      { "op": "transform", "to": "self", "into": "taper_captain", "owner": "same", "fullHp": true, "trigger": "kill" }
+    ],
+    "text": "When its Strike kills, it becomes a Taper Captain with full HP."
+  },
+  {
+    "id": "censer",
+    "name": "Censer",
+    "owner": "unit",
+    "impl": "effects",
+    "effects": [
+      { "op": "heal", "amount": 1, "to": "area", "area": "ring8", "at": "self", "filter": { "side": "ally" }, "trigger": "tally" }
+    ],
+    "text": "At Tally, heals 1 HP to each adjacent allied piece (not itself)."
+  },
+  {
+    "id": "shieldbearer",
+    "name": "Shieldbearer",
+    "owner": "unit",
+    "impl": "data",
+    "text": "Arrives with Ward. (Expressed as startStatuses: ward.)"
+  },
+  {
+    "id": "battering",
+    "name": "Battering",
+    "owner": "unit",
+    "impl": "data",
+    "text": "A target that survives its Strike is pushed 2. (Expressed as attack.push 2.)"
+  },
+  {
+    "id": "webs",
+    "name": "Webs",
+    "owner": "unit",
+    "impl": "data",
+    "text": "Its Strike applies Dazed. (Expressed as attack.status dazed.)"
+  },
+  {
+    "id": "heavy",
+    "name": "Heavy",
+    "owner": "unit",
+    "impl": "data",
+    "text": "Cannot be pushed, pulled or swapped. Its Strike pushes 1 if the target survives. (immune: displacement; attack.push 1.)"
+  },
+  {
+    "id": "pop",
+    "name": "Pop",
+    "owner": "unit",
+    "impl": "effects",
+    "effects": [
+      { "op": "damage", "amount": 1, "to": "area", "area": "ring8", "at": "self", "filter": { "side": "enemy" }, "trigger": "death" }
+    ],
+    "text": "When it dies, it deals 1 damage to each adjacent enemy."
+  },
+  {
+    "id": "twin_knives",
+    "name": "Twin Knives",
+    "owner": "unit",
+    "impl": "data",
+    "text": "Its Strike hits twice (2 instances of 1 damage). (Expressed as attack.times 2.)"
+  },
+  {
+    "id": "crown",
+    "name": "Crown",
+    "owner": "enemy",
+    "impl": "engine",
+    "mode": "vigil",
+    "text": "Vigil only: if it ends a Snuff Move on rank 1, it becomes a Drip Hulk at full HP."
+  },
+  {
+    "id": "wax_pool",
+    "name": "Wax Pool",
+    "owner": "enemy",
+    "impl": "effects",
+    "effects": [{ "op": "create_tile", "tile": "hot_wax", "at": "self", "trigger": "death" }],
+    "text": "When it dies, its tile becomes Hot Wax."
+  },
+  {
+    "id": "belch",
+    "name": "Belch",
+    "owner": "enemy",
+    "impl": "effects",
+    "effects": [
+      { "op": "place_plume", "enemy": "sootling", "count": 1, "near": { "anchor": "self", "max": 2 }, "trigger": "plume_placement" }
+    ],
+    "text": "At each Plume placement, adds 1 Sootling Plume on a legal tile within 2 of itself."
+  }
+]

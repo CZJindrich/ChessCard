@@ -1,0 +1,9 @@
+[
+  { "id": "minion", "name": "Minion", "faction": "snuff", "glory": 1, "text": "1-2 HP fodder." },
+  { "id": "soldier", "name": "Soldier", "faction": "snuff", "glory": 2, "text": "The Snuff rank and file." },
+  { "id": "elite", "name": "Elite", "faction": "snuff", "glory": 3, "text": "Dangerous Snuff. Moonlit Hex cannot touch them." },
+  { "id": "structure", "name": "Structure", "faction": "both", "glory": 2, "text": "Immobile. Immune to push, pull and swap." },
+  { "id": "boss", "name": "Boss", "faction": "snuff", "glory": null, "text": "Multi-tile. Glory per full 10% of its max HP dealt, +2 for the killing blow." },
+  { "id": "hero", "name": "Hero", "faction": "wickfolk", "glory": null, "text": "A Lanternwarden. Smolders instead of dying." },
+  { "id": "unit", "name": "Unit", "faction": "wickfolk", "glory": null, "text": "A summoned Wickfolk piece." }
+]

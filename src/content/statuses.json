@@ -1,0 +1,25 @@
+[
+  {
+    "id": "ward",
+    "name": "Ward",
+    "max": 1,
+    "shape": "hexagon",
+    "text": "Cancels one whole damage instance (bump, Plume block and Hot Wax included), then breaks. Does not stop Gloam or Checkmate damage."
+  },
+  {
+    "id": "burn",
+    "name": "Burn",
+    "max": 1,
+    "damage": 1,
+    "tallies": 2,
+    "shape": "flame",
+    "text": "1 damage at Tally, for 2 Tallies. Does not stack; reapplying resets the count to 2."
+  },
+  {
+    "id": "dazed",
+    "name": "Dazed",
+    "max": 1,
+    "shape": "spiral",
+    "text": "Wickfolk: its next Strike is lost. Snuff with an intent: the intent is cancelled. Snuff without one: it declares none next Snuff Move. Boss: its last intent is cancelled."
+  }
+]

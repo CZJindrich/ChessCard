@@ -1,0 +1,26 @@
+[
+  {
+    "id": "bot_apprentice",
+    "label": "Easy",
+    "flavour": "Apprentice",
+    "nodeBudget": 200,
+    "wallClockMs": 2000,
+    "text": "Greedy: the best immediate kill, then the best block. Always takes the Blessing. Drafts the cheapest card."
+  },
+  {
+    "id": "bot_warden",
+    "label": "Normal",
+    "flavour": "Warden",
+    "nodeBudget": 2000,
+    "wallClockMs": 4000,
+    "text": "Beam search over a seat turn, scored with the Snuff Strike preview."
+  },
+  {
+    "id": "bot_elder",
+    "label": "Hard",
+    "flavour": "Elder",
+    "nodeBudget": 20000,
+    "wallClockMs": 8000,
+    "text": "Deeper beam search plus a one-round lookahead. In Last Flame it also weighs rivals' Glory."
+  }
+]

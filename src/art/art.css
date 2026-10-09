@@ -1,0 +1,329 @@
+/*
+ * Wickwatch procedural art — tokens and shared motion (GDD §16).
+ *
+ * Ancestor switches the app may set (usually on <html> or the app root):
+ *   .ww-reduced-motion  freeze every looping animation (presentation setting `reduced_motion`)
+ *   .ww-readable-font   swap decorative faces for system-ui (`readable_font`)
+ *   .ww-bold-outlines   heavier silhouette outlines (`bold_outlines`)
+ *
+ * Performance (§16.10): looping motion animates only `transform` and `opacity`.
+ */
+
+:root {
+  --ww-night-ink: #0D0B12;
+  --ww-crypt-plum: #191523;
+  --ww-velvet-dusk: #2A2238;
+  --ww-engraving: #3B3550;
+  --ww-flagstone-a: #24202D;
+  --ww-flagstone-b: #2D2938;
+  --ww-grout: #15121B;
+  --ww-tallow-text: #EDE3CC;
+  --ww-ash-text: #A79FB8;
+  --ww-candle-gold: #F4B942;
+  --ww-flame-core: #FFF3C4;
+  --ww-ember: #E8742C;
+  --ww-blood-wax: #E5383B;
+  --ww-verdigris: #3FA28C;
+  --ww-moonmoth: #9FD8E8;
+  --ww-brass: #B8913A;
+  --ww-moonsilver: #D9E2F2;
+  --ww-snuff-body-top: #7E6EA0;
+  --ww-snuff-body-bottom: #5A4C78;
+  --ww-snuff-rim: #B79CFF;
+  --ww-snuff-eye: #FF3B2F;
+  --ww-snuff-under-glow: #6A4C9C;
+  --ww-plume-violet: #9A5CFF;
+  --ww-gloam-fog: #4B3A66;
+  --ww-gloam-band: #7E5BC2;
+  --ww-guttered-wax-top: #D9C7A3;
+  --ww-guttered-wax-bottom: #8C6B4A;
+  --ww-molten-core: #FF9A3C;
+  --ww-moonfire: #7FC8FF;
+  --ww-moth-silver: #C9C3E6;
+  --ww-tile-pillar: #3A3545;
+  --ww-tile-pillar-top: #4A4458;
+  --ww-tile-rubble: #4A3426;
+  --ww-tile-chimney: #5A2E2A;
+  --ww-tile-hot-wax-top: #F2A65A;
+  --ww-tile-hot-wax-bottom: #C9612B;
+  --ww-matchbook-red: #5A1E22;
+  --ww-sunrise-gold: #FFD86B;
+  --ww-eye-ink: #2B1A10;
+  --ww-vellum-top: #E9DCC0;
+  --ww-vellum-bottom: #D8C6A0;
+  --ww-seal-red: #8E2228;
+
+  --ww-house-beeswax: #E09A2D;
+  --ww-house-tallow: #E6D9B8;
+  --ww-house-bayberry: #7FAF5A;
+  --ww-house-rushlight: #5B8DEF;
+
+  --ww-font-display: 'Cinzel Decorative', 'Cinzel', serif;
+  --ww-font-label: 'Cinzel', serif;
+  --ww-font-body: 'EB Garamond', Georgia, serif;
+  --ww-font-flavor: 'IM Fell English', 'EB Garamond', Georgia, serif;
+}
+
+.ww-readable-font {
+  --ww-font-display: system-ui, sans-serif;
+  --ww-font-body: system-ui, sans-serif;
+  --ww-font-flavor: system-ui, sans-serif;
+}
+
+/* ---------- Typography inside SVG ---------- */
+.ww-display { font-family: var(--ww-font-display); font-weight: 700; }
+.ww-label { font-family: var(--ww-font-label); font-weight: 600; }
+.ww-num { font-family: var(--ww-font-label); font-weight: 700; }
+.ww-body { font-family: var(--ww-font-body); font-weight: 400; }
+.ww-flavor { font-family: var(--ww-font-flavor); font-style: italic; }
+.ww-num, .ww-label, .ww-display { letter-spacing: 0.02em; }
+.ww-halo-text { paint-order: stroke fill; stroke-linejoin: round; }
+
+/* ---------- Root & accessibility switches ---------- */
+.ww-art { overflow: visible; display: block; }
+.ww-art text { user-select: none; }
+.ww-still, .ww-still *,
+.ww-reduced-motion .ww-art, .ww-reduced-motion .ww-art * {
+  animation: none !important;
+  transition: none !important;
+}
+.ww-bold-outlines .ww-outline { stroke-width: 2.4px; stroke: #0D0B12; stroke-opacity: 1; }
+
+/* ---------- Pieces (§16.6) ---------- */
+.ww-flicker {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  animation: ww-flicker var(--ww-dur, 2s) ease-in-out var(--ww-delay, 0s) infinite alternate;
+}
+@keyframes ww-flicker {
+  0% { transform: scaleY(0.92) skewX(-4deg); }
+  22% { transform: scaleY(1.05) skewX(2deg); }
+  48% { transform: scaleY(0.96) skewX(4deg); }
+  74% { transform: scaleY(1.08) skewX(-1.5deg); }
+  100% { transform: scaleY(0.94) skewX(-3deg); }
+}
+
+.ww-blink {
+  transform-box: fill-box;
+  transform-origin: 50% 50%;
+  animation: ww-blink var(--ww-blink-dur, 5s) linear var(--ww-blink-delay, 0s) infinite;
+}
+@keyframes ww-blink {
+  0%, 95%, 100% { transform: scaleY(1); }
+  97% { transform: scaleY(0.12); }
+}
+
+.ww-glance { transition: transform 180ms ease-out; }
+
+.ww-sway {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  animation: ww-sway var(--ww-dur, 3.4s) ease-in-out var(--ww-delay, 0s) infinite alternate;
+}
+@keyframes ww-sway {
+  0% { transform: skewX(-3.5deg) translateX(0.6px); }
+  100% { transform: skewX(3.5deg) translateX(-0.6px); }
+}
+
+.ww-wisp {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  animation: ww-wisp var(--ww-dur, 2.8s) ease-out var(--ww-delay, 0s) infinite;
+}
+@keyframes ww-wisp {
+  0% { transform: translate(0, 2px) scale(0.6); opacity: 0; }
+  25% { opacity: 0.8; }
+  100% { transform: translate(var(--ww-drift, 2px), -9px) scale(1.25); opacity: 0; }
+}
+
+.ww-bob {
+  animation: ww-bob var(--ww-dur, 2.6s) ease-in-out var(--ww-delay, 0s) infinite alternate;
+}
+@keyframes ww-bob {
+  0% { transform: translateY(0); }
+  100% { transform: translateY(-2.5px); }
+}
+
+.ww-flutter {
+  transform-box: fill-box;
+  transform-origin: var(--ww-origin, 50% 50%);
+  animation: ww-flutter var(--ww-dur, 0.5s) ease-in-out var(--ww-delay, 0s) infinite alternate;
+}
+@keyframes ww-flutter {
+  0% { transform: scaleX(1); }
+  100% { transform: scaleX(0.55); }
+}
+
+.ww-orbit {
+  transform-origin: var(--ww-orbit-x, 32px) var(--ww-orbit-y, 20px);
+  animation: ww-orbit var(--ww-dur, 7s) linear var(--ww-delay, 0s) infinite;
+}
+@keyframes ww-orbit {
+  to { transform: rotate(360deg); }
+}
+.ww-counter-orbit {
+  transform-box: fill-box;
+  transform-origin: 50% 50%;
+  animation: ww-orbit var(--ww-dur, 7s) linear var(--ww-delay, 0s) infinite reverse;
+}
+
+.ww-halo-spin {
+  transform-box: fill-box;
+  transform-origin: 50% 50%;
+  animation: ww-orbit 24s linear infinite;
+}
+
+.ww-ready-pulse {
+  animation: ww-pulse 1.6s ease-in-out infinite alternate;
+}
+@keyframes ww-pulse {
+  0% { opacity: 0.35; }
+  100% { opacity: 0.95; }
+}
+
+.ww-glow-pulse {
+  animation: ww-glow-pulse var(--ww-dur, 2.4s) ease-in-out var(--ww-delay, 0s) infinite alternate;
+}
+@keyframes ww-glow-pulse {
+  0% { opacity: var(--ww-glow-min, 0.55); }
+  100% { opacity: var(--ww-glow-max, 1); }
+}
+
+.ww-twinkle {
+  transform-box: fill-box;
+  transform-origin: 50% 50%;
+  animation: ww-twinkle var(--ww-dur, 1.4s) ease-in-out var(--ww-delay, 0s) infinite;
+}
+@keyframes ww-twinkle {
+  0%, 100% { opacity: 0; transform: scale(0.4); }
+  45% { opacity: 1; transform: scale(1); }
+}
+
+.ww-spin {
+  transform-box: fill-box;
+  transform-origin: 50% 50%;
+  animation: ww-orbit var(--ww-dur, 6s) linear infinite;
+}
+.ww-spin-rev {
+  transform-box: fill-box;
+  transform-origin: 50% 50%;
+  animation: ww-orbit var(--ww-dur, 6s) linear infinite reverse;
+}
+
+.ww-swing {
+  transform-origin: var(--ww-pivot-x, 0) var(--ww-pivot-y, 0);
+  animation: ww-swing var(--ww-dur, 1.8s) ease-in-out infinite alternate;
+}
+@keyframes ww-swing {
+  0% { transform: rotate(-14deg); }
+  100% { transform: rotate(14deg); }
+}
+
+/* ---------- Tiles (§16.5) ---------- */
+.ww-bubble {
+  transform-box: fill-box;
+  transform-origin: 50% 50%;
+  animation: ww-bubble var(--ww-dur, 2.6s) ease-in var(--ww-delay, 0s) infinite;
+}
+@keyframes ww-bubble {
+  0% { transform: scale(0.2); opacity: 0; }
+  20% { opacity: 0.9; }
+  78% { transform: scale(1); opacity: 0.9; }
+  86% { transform: scale(1.35); opacity: 0; }
+  100% { transform: scale(1.35); opacity: 0; }
+}
+
+.ww-fog-drift {
+  animation: ww-fog-drift var(--ww-dur, 9s) ease-in-out var(--ww-delay, 0s) infinite alternate;
+}
+@keyframes ww-fog-drift {
+  0% { transform: translate(-4px, 1px); opacity: 0.55; }
+  100% { transform: translate(4px, -2px); opacity: 0.95; }
+}
+
+.ww-band-pulse {
+  animation: ww-band-pulse 1.4s ease-in-out infinite alternate;
+}
+@keyframes ww-band-pulse {
+  0% { opacity: 0.35; }
+  100% { opacity: 0.85; }
+}
+
+.ww-plume-rise {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  animation: ww-plume-rise var(--ww-dur, 3s) ease-in-out var(--ww-delay, 0s) infinite alternate;
+}
+@keyframes ww-plume-rise {
+  0% { transform: scale(0.94, 0.9); }
+  100% { transform: scale(1.04, 1.06); }
+}
+
+.ww-intent-pulse {
+  animation: ww-intent-pulse 1.2s ease-in-out infinite;
+}
+@keyframes ww-intent-pulse {
+  0%, 100% { opacity: 0.78; }
+  50% { opacity: 1; }
+}
+
+.ww-drift-up {
+  animation: ww-drift-up var(--ww-dur, 10s) linear var(--ww-delay, 0s) infinite;
+}
+@keyframes ww-drift-up {
+  0% { transform: translate(0, 0); opacity: 0; }
+  12% { opacity: var(--ww-mote-alpha, 0.7); }
+  88% { opacity: var(--ww-mote-alpha, 0.7); }
+  100% { transform: translate(var(--ww-drift-x, 20px), var(--ww-drift-y, -120px)); opacity: 0; }
+}
+
+/* Velveteen's orbiting moths: two synced sinusoids make an ellipse (transform/opacity only). */
+.ww-orbit-x {
+  animation: ww-orbit-x var(--ww-dur, 3.5s) ease-in-out var(--ww-delay, 0s) infinite alternate;
+}
+@keyframes ww-orbit-x {
+  0% { transform: translateX(-16px); }
+  100% { transform: translateX(16px); }
+}
+.ww-orbit-y {
+  transform-box: fill-box;
+  transform-origin: 50% 50%;
+  animation: ww-orbit-y var(--ww-dur, 3.5s) ease-in-out var(--ww-delay, 0s) infinite alternate;
+}
+@keyframes ww-orbit-y {
+  0% { transform: translateY(-5px) scale(0.75); opacity: 0.45; }
+  100% { transform: translateY(5px) scale(1.12); opacity: 1; }
+}
+
+/* ---------- Bosses (§16.8) ---------- */
+.ww-wing-flap {
+  transform-box: fill-box;
+  transform-origin: var(--ww-origin, 50% 50%);
+  animation: ww-wing-flap 4s ease-in-out infinite;
+}
+@keyframes ww-wing-flap {
+  0%, 100% { transform: scaleX(1) scaleY(1); }
+  45% { transform: scaleX(0.62) scaleY(0.97); }
+  55% { transform: scaleX(0.6) scaleY(0.97); }
+}
+.ww-bob-lg {
+  animation: ww-bob-lg var(--ww-dur, 4s) ease-in-out var(--ww-delay, 0s) infinite alternate;
+}
+@keyframes ww-bob-lg {
+  0% { transform: translateY(0); }
+  100% { transform: translateY(-6px); }
+}
+.ww-boss-silhouette { filter: drop-shadow(0 0 6px rgba(183, 156, 255, 0.55)); }
+
+/* ---------- HUD (§16.9: Dread +1 gutters the Hour Candle, 600 ms) ---------- */
+.ww-gutter {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  animation: ww-gutter 0.6s ease-in-out infinite;
+}
+@keyframes ww-gutter {
+  0% { transform: scale(1, 1) skewX(0deg); opacity: 1; }
+  30% { transform: scale(0.8, 0.45) skewX(-14deg); opacity: 0.55; }
+  60% { transform: scale(0.95, 0.7) skewX(10deg); opacity: 0.8; }
+  100% { transform: scale(1, 1) skewX(0deg); opacity: 1; }
+}

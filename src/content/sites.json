@@ -1,0 +1,46 @@
+[
+  {
+    "id": "cathedral_of_tallow",
+    "name": "Cathedral of Tallow",
+    "pillarLayout": "mirrored",
+    "counts": {
+      "8x8": { "pillars": 4, "rubble": 2, "shrines": 1, "chimneyPairs": 0, "hotWax": 0, "smokestacks": 0 },
+      "10x10": { "pillars": 6, "rubble": 3, "shrines": 2, "chimneyPairs": 0, "hotWax": 0, "smokestacks": 0 }
+    },
+    "text": "Mirrored pillars, a little rubble and a Votive Shrine. Vigil Night 1.",
+    "flavor": "Pillars of old wax hold up a vault of smoke-stained glass."
+  },
+  {
+    "id": "soot_market",
+    "name": "Soot Market",
+    "pillarLayout": "scattered",
+    "counts": {
+      "8x8": { "pillars": 2, "rubble": 6, "shrines": 1, "chimneyPairs": 1, "hotWax": 0, "smokestacks": 0 },
+      "10x10": { "pillars": 3, "rubble": 9, "shrines": 2, "chimneyPairs": 1, "hotWax": 0, "smokestacks": 0 }
+    },
+    "text": "Heaps of rubble that stop slides, and a pair of Chimneys.",
+    "flavor": "Overturned stalls and spilled wares, and every shadow sells something."
+  },
+  {
+    "id": "belfry_steps",
+    "name": "Belfry Steps",
+    "pillarLayout": "staggered_lanes",
+    "counts": {
+      "8x8": { "pillars": 6, "rubble": 0, "shrines": 1, "chimneyPairs": 0, "hotWax": 2, "smokestacks": 0 },
+      "10x10": { "pillars": 8, "rubble": 0, "shrines": 2, "chimneyPairs": 0, "hotWax": 3, "smokestacks": 0 }
+    },
+    "text": "Staggered lanes of pillars and pools of Hot Wax.",
+    "flavor": "Stone lanes climb between bell-pillars, slick with fallen wax."
+  },
+  {
+    "id": "the_waxworks",
+    "name": "The Waxworks",
+    "pillarLayout": "scattered",
+    "counts": {
+      "8x8": { "pillars": 2, "rubble": 2, "shrines": 1, "chimneyPairs": 1, "hotWax": 4, "smokestacks": 1 },
+      "10x10": { "pillars": 3, "rubble": 3, "shrines": 2, "chimneyPairs": 2, "hotWax": 6, "smokestacks": 1 }
+    },
+    "text": "Hot Wax everywhere, Chimneys, and a Smokestack coughing up Sootlings.",
+    "flavor": "Vats of molten wax bubble beneath a coughing smokestack."
+  }
+]

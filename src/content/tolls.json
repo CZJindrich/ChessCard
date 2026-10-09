@@ -1,0 +1,147 @@
+[
+  {
+    "id": "candlemas_blessing",
+    "name": "Candlemas Blessing",
+    "kind": "blessing",
+    "effects": [{ "op": "ward", "to": "all", "filter": { "kinds": ["hero", "candle"] }, "trigger": "night_start" }],
+    "text": "Every hero and Vigil Candle starts the Night with Ward.",
+    "flavor": "The bells of Candlemas ring out, and every flame stands a little taller."
+  },
+  {
+    "id": "lucky_wick",
+    "name": "Lucky Wick",
+    "kind": "blessing",
+    "effects": [{ "op": "modify_rule", "rule": "hand_size", "delta": 1, "duration": "night" }],
+    "text": "Draw up to 6 cards instead of 5.",
+    "flavor": "A wick that burns crooked burns lucky, or so the chandlers swear."
+  },
+  {
+    "id": "hearthwind",
+    "name": "Hearthwind",
+    "kind": "blessing",
+    "effects": [{ "op": "heal", "amount": 1, "to": "all", "filter": { "faction": "wickfolk" }, "trigger": "tally" }],
+    "text": "At every Tally, every Wickfolk piece heals 1 HP.",
+    "flavor": "A warm wind from the hearths of home, carrying the smell of fresh wax."
+  },
+  {
+    "id": "peddler_of_wicks",
+    "name": "Peddler of Wicks",
+    "kind": "blessing",
+    "effects": [{ "op": "modify_rule", "rule": "flame_per_turn", "delta": 1, "duration": "night" }],
+    "text": "+1 Flame at the start of every seat turn.",
+    "flavor": "Wicks, fine wicks! Two for a copper, three for a kind word!"
+  },
+  {
+    "id": "moth_migration",
+    "name": "Moth Migration",
+    "kind": "blessing",
+    "effects": [
+      { "op": "summon", "unit": "velvet_moth", "near": { "anchor": "hero" }, "owner": "player", "trigger": "night_start" }
+    ],
+    "text": "Each hero starts the Night with a free Velvet Moth (placed next to the hero; counts toward the unit limit).",
+    "flavor": "The moths come home to the Vigil, as they do once every hundred nights."
+  },
+  {
+    "id": "soot_fog",
+    "name": "Soot Fog",
+    "kind": "curse",
+    "effects": [{ "op": "modify_rule", "rule": "wickfolk_range", "delta": -1, "duration": "night" }],
+    "reward": "chandlery_take_two",
+    "text": "Every Wickfolk range (strikes, cards, Powers) is 1 shorter, minimum 1.",
+    "flavor": "A yellow fog creeps up from the gutters. You can scarcely see your own wick."
+  },
+  {
+    "id": "bell_of_embers",
+    "name": "Bell of Embers",
+    "kind": "curse",
+    "effects": [{ "op": "modify_rule", "rule": "snuff_attack_status", "value": "burn", "duration": "night" }],
+    "reward": "chandlery_take_two",
+    "text": "Snuff attacks also apply Burn.",
+    "flavor": "The great bell rings red, and the Snuff's touch now burns."
+  },
+  {
+    "id": "waxen_rain",
+    "name": "Waxen Rain",
+    "kind": "curse",
+    "effects": [
+      {
+        "op": "create_tile",
+        "tile": "hot_wax",
+        "count": 2,
+        "where": { "base": ["flagstone"], "empty": true, "minHeroDistance": 2 },
+        "trigger": "plume_placement"
+      }
+    ],
+    "reward": "chandlery_take_two",
+    "text": "At every Plume placement, 2 Hot Wax pools also appear on empty flagstones at least 2 from every hero.",
+    "flavor": "Hot wax falls from the high chandeliers like a slow, cruel rain."
+  },
+  {
+    "id": "ill_omen",
+    "name": "Ill Omen",
+    "kind": "curse",
+    "requires": ["moth_die"],
+    "effects": [{ "op": "modify_rule", "rule": "omen_good_faces_calm", "value": true, "duration": "night" }],
+    "reward": "chandlery_take_two",
+    "text": "Moth Die faces 5 and 6 count as 3 (Stillness).",
+    "flavor": "The Moth-Moon is veiled tonight. Do not trust your luck."
+  },
+  {
+    "id": "crumbling_nave",
+    "name": "Crumbling Nave",
+    "kind": "curse",
+    "requires": ["pillar"],
+    "effects": [
+      { "op": "create_tile", "tile": "rubble", "where": { "base": ["pillar"] }, "trigger": "night_start" },
+      { "op": "create_tile", "tile": "rubble", "count": 4, "where": { "base": ["flagstone"], "empty": true }, "trigger": "night_start" }
+    ],
+    "reward": "chandlery_take_two",
+    "text": "At Night start, every Pillar crumbles into Rubble, and 4 more Rubble tiles appear on empty flagstones.",
+    "flavor": "The old stones groan. Pillars that stood a thousand years give way."
+  },
+  {
+    "id": "restless_soot",
+    "name": "Restless Soot",
+    "kind": "curse",
+    "effects": [{ "op": "modify_rule", "rule": "snuff_move_range", "delta": 1, "duration": "night" }],
+    "reward": "chandlery_take_two",
+    "text": "Snuff steps and slides move 1 tile farther.",
+    "flavor": "The Snuff are restless tonight, and they hurry."
+  },
+  {
+    "id": "shifting_chimneys",
+    "name": "Shifting Chimneys",
+    "kind": "curse",
+    "requires": ["chimney_pair"],
+    "effects": [
+      {
+        "op": "move_tile",
+        "tile": "chimney",
+        "where": { "base": ["flagstone"], "empty": true, "minHeroDistance": 2 },
+        "trigger": "tally"
+      }
+    ],
+    "reward": "chandlery_take_two",
+    "text": "At every Tally, each Chimney pair moves to new empty flagstones at least 2 from every hero.",
+    "flavor": "The chimneys wander in the night, as chimneys sometimes do in Sconcewick."
+  },
+  {
+    "id": "muffled_nave",
+    "name": "Muffled Nave",
+    "kind": "curse",
+    "effects": [{ "op": "modify_rule", "rule": "card_limit", "value": 2, "duration": "night" }],
+    "reward": "chandlery_take_two",
+    "text": "Each seat may play at most 2 cards per seat turn.",
+    "flavor": "A velvet hush lies on the nave. Even the cards whisper."
+  },
+  {
+    "id": "black_sun",
+    "name": "Black Sun",
+    "kind": "curse",
+    "requires": ["plumes"],
+    "effects": [{ "op": "modify_rule", "rule": "plumes_per_placement", "delta": 1, "duration": "night" }],
+    "reward": "chandlery_take_two",
+    "text": "+1 Plume at every Plume placement.",
+    "flavor": "A black sun hangs over the spires, and the smoke pours thicker."
+  }
+]

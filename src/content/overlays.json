@@ -1,0 +1,28 @@
+[
+  {
+    "id": "gloam",
+    "name": "Gloam",
+    "kind": "overlay",
+    "damage": 2,
+    "text": "Last Flame only. A Wickfolk piece that ends a Tally in Gloam takes 2 damage; Ward does not apply. Snuff and bosses are immune. Removes Plumes, Lanterns, Wick Mortars and Smokestacks; darkens Lit Shrines; a Smoldering Wick here is eliminated."
+  },
+  {
+    "id": "gloam_warning",
+    "name": "Gloam Warning",
+    "kind": "overlay",
+    "text": "Marks the ring that closes at this round's Tally."
+  },
+  {
+    "id": "vigil_candle",
+    "name": "Vigil Candle",
+    "kind": "structure",
+    "hp": 3,
+    "text": "Vigil structure. 3 HP, immobile, immune to displacement. Blocks movement and line of sight. Can receive Ward and healing. Each hit adds Dread; at 0 HP it is snuffed."
+  },
+  {
+    "id": "smoldering_wick",
+    "name": "Smoldering Wick",
+    "kind": "structure",
+    "text": "Left by a fallen hero. Blocks movement but not line of sight. Can be damaged only by Gloam. An adjacent ally can relight it with its Strike."
+  }
+]

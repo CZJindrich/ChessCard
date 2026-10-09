@@ -1,0 +1,60 @@
+[
+  {
+    "id": "flagstone",
+    "name": "Flagstone",
+    "enterable": true,
+    "endsSlide": false,
+    "blocksLos": false,
+    "aiCost": 1,
+    "text": "Plain engraved stone."
+  },
+  {
+    "id": "pillar",
+    "name": "Pillar",
+    "enterable": false,
+    "endsSlide": false,
+    "blocksLos": true,
+    "aiCost": null,
+    "text": "Cannot be entered. Blocks line of sight. Cannot be damaged."
+  },
+  {
+    "id": "rubble",
+    "name": "Rubble",
+    "enterable": true,
+    "endsSlide": true,
+    "blocksLos": false,
+    "aiCost": 2,
+    "text": "A non-flying slide that enters Rubble stops there."
+  },
+  {
+    "id": "votive_shrine",
+    "name": "Votive Shrine",
+    "enterable": true,
+    "endsSlide": false,
+    "blocksLos": false,
+    "aiCost": 1,
+    "lightRadius": 1.5,
+    "litLightRadius": 3,
+    "text": "A Wickfolk piece on or adjacent may spend its Strike to light it. A Lit Shrine heals 1 HP to each Wickfolk piece on or adjacent to it at Tally. A Snuff ending a move on it, or a Snuff attack covering it, puts it out. In Last Flame, lighting one gives +1 Glory."
+  },
+  {
+    "id": "chimney",
+    "name": "Chimney",
+    "enterable": true,
+    "endsSlide": false,
+    "blocksLos": false,
+    "aiCost": 1,
+    "text": "Comes in pairs. A voluntary Move by a Wickfolk piece that enters a Chimney ends on the paired Chimney, if that one is empty. No chaining. For everything else it is a flagstone."
+  },
+  {
+    "id": "hot_wax",
+    "name": "Hot Wax",
+    "enterable": true,
+    "endsSlide": false,
+    "blocksLos": false,
+    "aiCost": 4,
+    "aiCostImmune": 1,
+    "damage": 1,
+    "text": "1 damage to a non-flying, non-immune piece that ends any movement on it, and 1 more at each Tally while it stays. Sliding through does nothing."
+  }
+]

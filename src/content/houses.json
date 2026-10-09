@@ -1,0 +1,6 @@
+[
+  { "id": "house_beeswax", "seat": 1, "name": "House Beeswax", "color": "#E09A2D", "glyph": "bee" },
+  { "id": "house_tallow", "seat": 2, "name": "House Tallow", "color": "#E6D9B8", "glyph": "drop" },
+  { "id": "house_bayberry", "seat": 3, "name": "House Bayberry", "color": "#7FAF5A", "glyph": "berry_sprig" },
+  { "id": "house_rushlight", "seat": 4, "name": "House Rushlight", "color": "#5B8DEF", "glyph": "reed" }
+]

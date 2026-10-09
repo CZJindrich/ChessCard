@@ -1,0 +1,53 @@
+[
+  {
+    "id": "ever_burning_wick",
+    "name": "Ever-Burning Wick",
+    "kind": "triggered",
+    "effects": [{ "op": "ward", "to": "hero", "trigger": "night_start" }],
+    "text": "Your hero starts every Night with Ward.",
+    "flavor": "Lit at the founding of Sconcewick, and never once gone out."
+  },
+  {
+    "id": "brass_thimble",
+    "name": "Brass Thimble",
+    "kind": "passive",
+    "effects": [{ "op": "modify_rule", "rule": "hero_max_hp", "delta": 2, "duration": "game" }],
+    "text": "+2 max HP for your hero.",
+    "flavor": "Grandmother's thimble. Surprisingly good armour, if you are small."
+  },
+  {
+    "id": "lamplighters_hook",
+    "name": "Lamplighter's Hook",
+    "kind": "passive",
+    "effects": [{ "op": "modify_rule", "rule": "card_range_from_hero", "delta": 1, "duration": "game" }],
+    "text": "+1 range on every card that counts from your hero.",
+    "flavor": "Long enough to reach the highest sconce, and a little further."
+  },
+  {
+    "id": "moth_velvet_cloak",
+    "name": "Moth-Velvet Cloak",
+    "kind": "passive",
+    "effects": [{ "op": "modify_rule", "rule": "hero_flying", "value": true, "duration": "game" }],
+    "text": "Your hero is flying.",
+    "flavor": "Woven from the shed wings of a thousand moths. It wants to fly."
+  },
+  {
+    "id": "candlemakers_mold",
+    "name": "Candlemaker's Mold",
+    "kind": "passive",
+    "effects": [{ "op": "modify_rule", "rule": "first_summon_discount", "delta": 1, "duration": "game" }],
+    "text": "Your first Summon each seat turn costs 1 less Flame (minimum 0).",
+    "flavor": "The old mould remembers every candle it ever made, and helps make more."
+  },
+  {
+    "id": "bell_of_saint_tallow",
+    "name": "Bell of Saint Tallow",
+    "kind": "free_action",
+    "freeAction": "ring_bell",
+    "usesPerNight": 1,
+    "target": { "kind": "piece", "side": "enemy", "range": { "from": "hero", "max": 4 } },
+    "effects": [{ "op": "daze" }],
+    "text": "Once per Night, as a free action, Daze an enemy within 4 of your hero.",
+    "flavor": "One ring of this small bell, and the Snuff stand stunned as statues."
+  }
+]

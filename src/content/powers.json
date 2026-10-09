@@ -1,0 +1,58 @@
+[
+  {
+    "id": "lantern_oath",
+    "name": "Lantern Oath",
+    "hero": "sconce_paladin",
+    "target": { "kind": "board" },
+    "effects": [
+      { "op": "ward", "to": "hero" },
+      { "op": "ward", "to": "area", "area": "ring8", "at": "hero", "filter": { "side": "ally" } }
+    ],
+    "text": "Brannoc and every allied piece adjacent to him gain Ward.",
+    "flavor": "By lantern and oath, none of mine shall fall tonight."
+  },
+  {
+    "id": "flutterswap",
+    "name": "Flutterswap",
+    "hero": "moth_witch",
+    "target": {
+      "kind": "piece",
+      "side": "any",
+      "range": { "from": "hero", "max": 3 },
+      "singleTile": true,
+      "notStructure": true,
+      "count": 2
+    },
+    "effects": [{ "op": "swap", "a": "target", "b": "target2" }],
+    "text": "Swap two single-tile, non-structure pieces within 3 of Velveteen. She may be one of them.",
+    "flavor": "A flutter of wings, and nobody is quite where they were."
+  },
+  {
+    "id": "castle",
+    "name": "Castle",
+    "hero": "lampwright",
+    "target": {
+      "kind": "piece",
+      "side": "own",
+      "range": { "from": "board" },
+      "units": ["lantern", "wick_mortar"]
+    },
+    "effects": [{ "op": "swap", "a": "hero", "b": "target", "ignoreImmunity": true }],
+    "text": "Wicklow swaps places with one of his Lanterns or Wick Mortars anywhere on the board.",
+    "flavor": "The lamplighter knows every lamp by name, and each one knows the way home."
+  },
+  {
+    "id": "shadowstep",
+    "name": "Shadowstep",
+    "hero": "ember_duelist",
+    "target": {
+      "kind": "tile",
+      "range": { "from": "board" },
+      "empty": true,
+      "adjacentTo": { "side": "enemy", "range": { "from": "hero", "max": 4 } }
+    },
+    "effects": [{ "op": "teleport", "to": "hero", "dest": "target" }],
+    "text": "Move Vey to an empty, enterable tile adjacent to an enemy within 4 of her. This does not use her Move.",
+    "flavor": "One step into the dark, the next into your guard."
+  }
+]

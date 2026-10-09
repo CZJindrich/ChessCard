@@ -1,0 +1,406 @@
+/* New Game: two columns (seats | presets, basics, advanced) over an action bar. */
+
+/* Wide screens: each column scrolls on its own so seats stay in view while rules scroll. */
+.ww-screen__body.ww-setup {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 1.1rem;
+  width: 100%;
+  max-width: 84rem;
+  margin: 0 auto;
+  padding-top: 0;
+  padding-bottom: 0;
+  overflow: hidden;
+}
+.ww-setup__left,
+.ww-setup__right {
+  display: flex;
+  flex-direction: column;
+  gap: 1.05rem;
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0.9rem 0.35rem 1.2rem;
+}
+
+/* Narrow screens: one scrolling column. */
+@media (max-width: 860px) {
+  .ww-screen__body.ww-setup {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    overflow: auto;
+  }
+  .ww-setup__left,
+  .ww-setup__right {
+    flex: none;
+    min-height: auto;
+    overflow: visible;
+    padding-block: 0.5rem;
+  }
+}
+
+/* Mode toggle */
+.ww-mode-toggle {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  width: 100%;
+}
+.ww-mode-toggle > * {
+  display: flex;
+}
+.ww-mode-toggle .ww-chip {
+  flex: 1;
+  justify-content: flex-start;
+  min-height: 3.3rem;
+  padding: 0.45rem 0.8rem;
+  white-space: normal;
+  text-align: left;
+}
+.ww-mode-toggle__option {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+.ww-mode-toggle__name {
+  font-family: var(--ww-font-label);
+  font-size: 1.02rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.ww-mode-toggle__sub {
+  font-family: var(--ww-font-body);
+  font-size: 0.88rem;
+  font-weight: 500;
+  letter-spacing: 0;
+  color: var(--ww-text-dim);
+}
+.ww-mode-toggle .ww-chip--on .ww-mode-toggle__sub {
+  color: var(--ww-text);
+}
+
+/* Seats */
+.ww-setup__seats {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+.ww-seat {
+  --ww-house: #e09a2d;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.75rem;
+  padding: 0.6rem 0.7rem 0.55rem;
+  border: 1px solid var(--ww-line-soft);
+  border-left: 3px solid var(--ww-house);
+  border-radius: var(--ww-radius);
+  background: linear-gradient(90deg, color-mix(in srgb, var(--ww-house) 9%, rgba(13, 11, 18, 0.6)), rgba(13, 11, 18, 0.45) 40%);
+}
+.ww-seat__house {
+  position: relative;
+  align-self: start;
+  padding-top: 0.1rem;
+}
+.ww-seat__house svg {
+  width: 2.5rem;
+  height: 2.5rem;
+}
+.ww-seat__num {
+  position: absolute;
+  right: -0.35rem;
+  bottom: -0.3rem;
+  display: grid;
+  place-items: center;
+  width: 1.2rem;
+  height: 1.2rem;
+  border-radius: 50%;
+  background: var(--ww-house);
+  color: #1a1222;
+  font-size: 0.7rem;
+}
+.ww-seat__main {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  min-width: 0;
+}
+.ww-seat__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.6rem;
+}
+.ww-seat__name {
+  flex: 1 1 8rem;
+  max-width: 13rem;
+  min-height: 2rem;
+  padding-block: 0.2rem;
+  font-family: var(--ww-font-label);
+  font-weight: 600;
+  font-size: 0.92rem;
+}
+.ww-seat__meta {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-width: 0;
+  line-height: 1.2;
+}
+.ww-seat__house-name {
+  font-family: var(--ww-font-label);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ww-house);
+}
+.ww-seat__kind {
+  font-size: 0.85rem;
+  color: var(--ww-text-dim);
+}
+.ww-seat__remove-spacer {
+  width: 2.3rem;
+}
+.ww-seat__row--controls {
+  justify-content: space-between;
+}
+.ww-seat__kinds .ww-chip {
+  min-height: 1.9rem;
+  padding-inline: 0.55rem;
+  font-size: 0.74rem;
+}
+.ww-seat__heroes .ww-chip {
+  min-height: 2.45rem;
+  padding: 0.1rem 0.2rem;
+}
+.ww-seat__heroes .ww-chip--on::before {
+  position: absolute;
+  top: -0.2rem;
+  left: 50%;
+  margin-left: -0.21rem;
+}
+.ww-seat__heroes svg {
+  width: 2.15rem;
+  height: 2.15rem;
+}
+.ww-seat__random {
+  color: var(--ww-text-dim);
+}
+.ww-seat__hero-name {
+  font-family: var(--ww-font-flavor);
+  font-style: italic;
+  font-size: 0.9rem;
+  color: var(--ww-text-dim);
+}
+.ww-setup__seat-issues {
+  margin-top: 0.6rem;
+}
+
+/* Presets */
+.ww-presets__divider {
+  width: 1px;
+  height: 1.6rem;
+  margin: 0 0.2rem;
+  background: var(--ww-line);
+}
+.ww-chip--empty {
+  border-style: dashed;
+  color: var(--ww-text-faint);
+}
+.ww-presets__manage {
+  margin-left: 0.3rem;
+}
+.ww-presets__intro {
+  margin-bottom: 0.8rem;
+}
+.ww-presets__slots {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+.ww-presets__slot {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+/* Basic options */
+.ww-basic {
+  display: flex;
+  flex-direction: column;
+}
+.ww-option {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  padding: 0.55rem 0;
+  border-top: 1px solid var(--ww-line-soft);
+}
+.ww-option:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+.ww-option__label {
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
+  font-family: var(--ww-font-label);
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ww-text-dim);
+}
+.ww-option > .ww-segmented,
+.ww-option > .ww-tip-anchor,
+.ww-option__stack > .ww-segmented,
+.ww-option__stack > .ww-tip-anchor {
+  align-self: flex-start;
+}
+.ww-option__stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-width: 0;
+}
+.ww-option__note {
+  font-size: 0.9rem;
+  color: var(--ww-text-dim);
+}
+.ww-difficulty-chip,
+.ww-boss-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+.ww-candles {
+  display: inline-flex;
+  gap: 0;
+}
+.ww-candles svg {
+  width: 0.85rem;
+  height: 0.85rem;
+}
+.ww-boss-chip svg {
+  width: 1.9rem;
+  height: 1.9rem;
+  margin-block: -0.35rem;
+}
+
+/* Advanced */
+.ww-advanced {
+  background: linear-gradient(180deg, rgba(42, 34, 56, 0.86), rgba(19, 16, 27, 0.92));
+  border-color: var(--ww-line);
+  box-shadow: var(--ww-shadow);
+}
+.ww-advanced__group + .ww-advanced__group {
+  margin-top: 0.85rem;
+}
+.ww-advanced__title {
+  margin-bottom: 0.25rem;
+  font-family: var(--ww-font-label);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ww-brass);
+}
+.ww-advanced__rows {
+  display: flex;
+  flex-direction: column;
+}
+.ww-param {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  grid-template-areas: 'label control source' 'issues issues issues';
+  gap: 0.3rem 0.75rem;
+  align-items: center;
+  padding: 0.32rem 0.45rem;
+  border-radius: var(--ww-radius-sm);
+}
+/* Choice rows put their segmented control on its own line. */
+.ww-param--wide {
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas: 'label source' 'control control' 'issues issues';
+}
+.ww-param .ww-segmented .ww-chip {
+  padding-inline: 0.6rem;
+  font-size: 0.74rem;
+}
+.ww-param:nth-child(odd) {
+  background: rgba(13, 11, 18, 0.28);
+}
+.ww-param--custom {
+  box-shadow: inset 2px 0 0 var(--ww-candle-gold);
+}
+.ww-param__label {
+  grid-area: label;
+  display: flex;
+  align-items: center;
+  gap: 0.15rem;
+  font-size: 0.98rem;
+}
+.ww-param__control {
+  grid-area: control;
+  min-width: 0;
+}
+.ww-param__source {
+  grid-area: source;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.3rem;
+}
+.ww-param__reset {
+  width: 1.8rem;
+  height: 1.8rem;
+}
+.ww-param__issues {
+  grid-area: issues;
+}
+.ww-param__seed {
+  max-width: 14rem;
+  font-family: var(--ww-font-label);
+  font-size: 0.9rem;
+}
+
+/* Summary */
+.ww-summary {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 0.3rem 1rem;
+  margin: 0;
+  font-size: 0.93rem;
+}
+.ww-summary__row {
+  display: contents;
+}
+.ww-summary dt {
+  font-family: var(--ww-font-label);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ww-brass);
+  padding-top: 0.15rem;
+}
+.ww-summary dd {
+  margin: 0;
+  color: var(--ww-text-dim);
+}
+
+/* Footer */
+.ww-setup__issues {
+  max-width: 26rem;
+  font-size: 0.85rem;
+}
+.ww-setup__code {
+  margin-top: 0.6rem;
+  min-height: 5rem;
+  word-break: break-all;
+}
+.ww-setup__paste-error {
+  margin-top: 0.6rem;
+}

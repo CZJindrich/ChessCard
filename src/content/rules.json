@@ -1,0 +1,96 @@
+{
+  "flameCap": 6,
+  "handLimit": 8,
+  "deckMin": 8,
+  "startingDeckSize": 10,
+  "charmsPerPiece": 1,
+  "summonRange": 2,
+  "placementMaxDistance": 3,
+  "plumeMinHeroDistance": 2,
+  "plumeLegalTiles": ["flagstone", "rubble"],
+  "bumpDamage": 1,
+  "plumeBlockDamage": 1,
+  "carryOverMax": 2,
+  "candlesPerNight": 3,
+  "candleMinSpacing": 2,
+  "flourishPerTurn": 2,
+  "ringBellRange": 4,
+  "bossDazeCancelsLast": true,
+  "selfRelightHp": 1,
+  "dawnRelightHp": 1,
+  "checkWarnEscapes": [1, 2],
+  "glory": {
+    "rivalUnit": 1,
+    "rivalHero": 3,
+    "bounty": 3,
+    "shrine": 1,
+    "bossDamagePct": 10,
+    "bossKill": 2,
+    "survival": 5,
+    "heroFalls": -2
+  },
+  "dread": {
+    "candleHit": 1,
+    "candleSnuffed": 1,
+    "heroFalls": 1,
+    "selfRelight": 1,
+    "bossToll": 1,
+    "dawnPerCandle": -1,
+    "thresholds": [
+      { "id": "dimming", "num": 1, "den": 3 },
+      { "id": "deep_dark", "num": 2, "den": 3 },
+      { "id": "long_night_falls", "num": 1, "den": 1 }
+    ]
+  },
+  "chandlery": {
+    "offer": 3,
+    "picks": 1,
+    "picksAfterCurse": 2,
+    "minClassCards": 1,
+    "rarityWeights": { "common": 6, "rare": 3, "mythic": 1 }
+  },
+  "lightRadius": { "wickfolk": 2.2, "lantern": 3, "shrine": 1.5, "litShrine": 3 },
+  "timers": {
+    "turn": { "slow": 150, "normal": 90, "fast": 45 },
+    "chandlery": 45,
+    "deploy": 20,
+    "toll": 20,
+    "carryOver": 20,
+    "haunt": 15,
+    "retryVote": 30,
+    "latencyGrace": 1.5,
+    "passScreen": 10,
+    "idleDisconnect": 180
+  },
+  "gloam": { "damage": 2, "closings": { "10x10": 3, "12x12": 4 }, "finalRound": 3 },
+  "boardSize": {
+    "vigil": [
+      { "maxSeats": 2, "size": "8x8" },
+      { "maxSeats": 4, "size": "10x10" }
+    ],
+    "last_flame": {
+      "10x10": { "minSeats": 2, "maxSeats": 3 },
+      "12x12": { "minSeats": 3, "maxSeats": 4 }
+    }
+  },
+  "vigilZones": {
+    "8x8": {
+      "deploy": { "from": 1, "to": 2 },
+      "snuff": { "from": 7, "to": 8 },
+      "plume": { "from": 4, "to": 8 },
+      "candles": { "from": 3, "to": 4 }
+    },
+    "10x10": {
+      "deploy": { "from": 1, "to": 2 },
+      "snuff": { "from": 9, "to": 10 },
+      "plume": { "from": 5, "to": 10 },
+      "candles": { "from": 3, "to": 5 }
+    }
+  },
+  "vigilHeroStarts": {
+    "8x8": ["d1", "e1", "c1", "f1"],
+    "10x10": ["e1", "f1", "d1", "g1"]
+  },
+  "siteGeneration": { "maxAttempts": 50, "minPlumeTiles": 12, "enemyMinHeroDistance": 2 },
+  "roomCode": { "alphabet": "BCDFGHJKMNPQRSTVWXZ", "length": 4, "idleMinutes": 30 }
+}

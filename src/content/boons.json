@@ -1,0 +1,20 @@
+[
+  {
+    "id": "heirloom",
+    "name": "Heirloom",
+    "amount": 2,
+    "text": "Choose 1 of 2 random Heirlooms you don't own."
+  },
+  {
+    "id": "temper",
+    "name": "Temper",
+    "amount": 1,
+    "text": "Temper one card: it costs 1 less (minimum 0). Quickwick, already free, gives 2 extra Moves instead."
+  },
+  {
+    "id": "prune",
+    "name": "Prune",
+    "amount": 2,
+    "text": "Remove up to 2 cards from your deck. The deck cannot go below 8."
+  }
+]

@@ -1,0 +1,109 @@
+/* Settings panel (screen and modal). */
+
+.ww-settings-screen {
+  display: flex;
+  justify-content: center;
+  padding-top: 1rem;
+}
+.ww-settings-screen__panel {
+  width: min(64rem, 100%);
+}
+
+.ww-settings {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+}
+.ww-settings__columns {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(21rem, 1fr));
+  gap: 0.5rem 2rem;
+}
+.ww-settings__column {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  min-width: 0;
+}
+.ww-settings__title {
+  margin-bottom: 0.3rem;
+  padding-bottom: 0.3rem;
+  border-bottom: 1px solid var(--ww-line);
+  font-family: var(--ww-font-label);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ww-candle-gold);
+}
+.ww-setting {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.25rem 1rem;
+  align-items: center;
+  padding: 0.45rem 0;
+}
+.ww-setting + .ww-setting {
+  border-top: 1px solid var(--ww-line-soft);
+}
+.ww-setting__text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.ww-setting__label {
+  font-family: var(--ww-font-label);
+  font-size: 0.86rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--ww-text);
+}
+.ww-setting__help {
+  font-size: 0.88rem;
+  line-height: 1.25;
+  color: var(--ww-text-dim);
+}
+.ww-setting__control {
+  display: flex;
+  justify-content: flex-end;
+}
+.ww-setting__control .ww-slider {
+  width: 13rem;
+}
+.ww-settings__actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.ww-settings__preview {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.7rem;
+  border: 1px dashed var(--ww-line);
+  border-radius: var(--ww-radius);
+  background: rgba(13, 11, 18, 0.4);
+}
+.ww-settings__preview > svg {
+  flex: none;
+}
+.ww-settings__sample {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+.ww-settings__sample-title {
+  font-family: var(--ww-font-label);
+  font-weight: 700;
+  color: var(--ww-candle-gold);
+}
+.ww-settings__sample-rules {
+  font-size: 0.95rem;
+}
+
+.ww-modal .ww-settings__columns {
+  grid-template-columns: minmax(0, 1fr);
+}

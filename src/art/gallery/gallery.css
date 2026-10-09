@@ -1,0 +1,150 @@
+/* Dev gallery chrome. Not shipped with the game. */
+html, body {
+  margin: 0;
+  background: var(--ww-night-ink);
+  color: var(--ww-tallow-text);
+  font-family: var(--ww-font-body);
+}
+
+.gal {
+  padding: 24px 32px 80px;
+  max-width: 1600px;
+}
+
+.gal h1 {
+  font-family: var(--ww-font-display);
+  font-weight: 700;
+  color: var(--ww-candle-gold);
+  margin: 0 0 4px;
+}
+
+.gal h2 {
+  font-family: var(--ww-font-label);
+  font-weight: 700;
+  color: var(--ww-candle-gold);
+  border-bottom: 1px solid var(--ww-engraving);
+  padding-bottom: 6px;
+  margin: 40px 0 12px;
+}
+
+.gal h3 {
+  font-family: var(--ww-font-label);
+  font-weight: 600;
+  color: var(--ww-ash-text);
+  font-size: 14px;
+  margin: 18px 0 8px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.gal-nav { display: flex; flex-wrap: wrap; gap: 8px 16px; font-family: var(--ww-font-label); font-size: 13px; }
+.gal-nav a { color: var(--ww-ash-text); text-decoration: none; }
+.gal-nav a:hover { color: var(--ww-candle-gold); }
+
+.gal-section { padding: 4px 0 8px; }
+
+.gal-row { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px; }
+
+.gal-grid {
+  display: grid;
+  gap: 0;
+  width: max-content;
+  border: 1px solid var(--ww-grout);
+}
+
+.gal-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+.gal-cell.a { background: var(--ww-flagstone-a); }
+.gal-cell.b { background: var(--ww-flagstone-b); }
+.gal-cell.dark { background: var(--ww-crypt-plum); }
+
+.gal-label {
+  font-family: var(--ww-font-label);
+  font-size: 11px;
+  color: var(--ww-ash-text);
+  text-align: center;
+  padding: 4px 2px;
+  max-width: 120px;
+}
+
+.gal-rowhead {
+  font-family: var(--ww-font-label);
+  font-size: 12px;
+  color: var(--ww-tallow-text);
+  padding: 0 10px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  text-align: right;
+  background: var(--ww-crypt-plum);
+  min-width: 130px;
+}
+
+.gal-item { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+
+.gal-panel {
+  background: var(--ww-crypt-plum);
+  border: 1px solid var(--ww-engraving);
+  border-radius: 6px;
+  padding: 12px;
+}
+
+.gal-scene {
+  position: relative;
+  width: 960px;
+  height: 540px;
+  border: 1px solid var(--ww-engraving);
+  overflow: hidden;
+}
+.gal-scene-sm {
+  position: relative;
+  width: 640px;
+  height: 360px;
+  border: 1px solid var(--ww-engraving);
+  overflow: hidden;
+}
+
+.gal-boss-stage {
+  position: relative;
+  width: 240px;
+  height: 240px;
+  background:
+    repeating-conic-gradient(var(--ww-flagstone-a) 0 25%, var(--ww-flagstone-b) 0 50%) 0 0 / 160px 160px;
+}
+.gal-boss-stage > svg { position: relative; z-index: 1; }
+.gal-boss-footprint {
+  position: absolute;
+  left: 40px;
+  top: 80px;
+  width: 160px;
+  height: 160px;
+  outline: 1px dashed rgba(244, 185, 66, 0.35);
+}
+
+.gal-scene-caption {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 10%;
+  text-align: center;
+  pointer-events: none;
+}
+.gal-scene-title {
+  font-family: var(--ww-font-display);
+  font-weight: 700;
+  font-size: 44px;
+  color: var(--ww-sunrise-gold);
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.8);
+}
+.gal-scene-sub {
+  font-family: var(--ww-font-label);
+  font-weight: 700;
+  color: var(--ww-candle-gold);
+  letter-spacing: 0.2em;
+  margin-top: 8px;
+}

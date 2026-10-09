@@ -1,0 +1,74 @@
+[
+  {
+    "id": "candlelit",
+    "name": "Candlelit",
+    "candles": 1,
+    "chip": "1 candle · Gentle",
+    "values": {
+      "starting_dread": 0,
+      "dread_max": 14,
+      "initial_enemies_mod": -1,
+      "plumes_mod": -1,
+      "enemy_hp_mod": "none",
+      "boss_hp_multiplier": 0.8,
+      "heal_between_nights": 6,
+      "extra_smokestack": false,
+      "retry_night": true
+    },
+    "text": "Gentle. Fewer Snuff, a longer Hour Candle and generous healing."
+  },
+  {
+    "id": "dusk",
+    "name": "Dusk",
+    "candles": 2,
+    "chip": "2 candles · Normal",
+    "values": {
+      "starting_dread": 0,
+      "dread_max": 12,
+      "initial_enemies_mod": 0,
+      "plumes_mod": 0,
+      "enemy_hp_mod": "none",
+      "boss_hp_multiplier": 1.0,
+      "heal_between_nights": 4,
+      "extra_smokestack": false,
+      "retry_night": true
+    },
+    "text": "Normal. The Vigil as it was meant to be kept."
+  },
+  {
+    "id": "midnight",
+    "name": "Midnight",
+    "candles": 3,
+    "chip": "3 candles · Hard",
+    "values": {
+      "starting_dread": 2,
+      "dread_max": 12,
+      "initial_enemies_mod": 0,
+      "plumes_mod": 0,
+      "enemy_hp_mod": "non_minions",
+      "boss_hp_multiplier": 1.15,
+      "heal_between_nights": 3,
+      "extra_smokestack": true,
+      "retry_night": false
+    },
+    "text": "Hard. Tougher Snuff, an extra Smokestack and no Retry."
+  },
+  {
+    "id": "witching_hour",
+    "name": "Witching Hour",
+    "candles": 4,
+    "chip": "4 candles · Brutal",
+    "values": {
+      "starting_dread": 3,
+      "dread_max": 12,
+      "initial_enemies_mod": 1,
+      "plumes_mod": 1,
+      "enemy_hp_mod": "all",
+      "boss_hp_multiplier": 1.3,
+      "heal_between_nights": 2,
+      "extra_smokestack": true,
+      "retry_night": false
+    },
+    "text": "Brutal. More Snuff, more Plumes, every enemy tougher."
+  }
+]
